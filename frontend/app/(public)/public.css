@@ -40,7 +40,8 @@
 .cta-row{display:flex;gap:12px;flex-wrap:wrap}.center .cta-row{justify-content:center}
 
 /* hero */
-.phero{position:relative;padding:190px 0 90px;overflow:hidden}
+.phero{position:relative;padding:130px 0 90px;overflow:hidden}
+@media(max-width:760px){.phero{padding-top:110px}}
 .hero-bg{position:absolute;inset:0;z-index:0;background:var(--bg)}
 .phero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:220px;z-index:0;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none}
 .phero .wrap{pointer-events:none}.phero .wrap a,.phero .wrap button{pointer-events:auto}
