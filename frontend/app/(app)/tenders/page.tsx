@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { closesLabel, crore, inr, isOpen, samplePdf, winCls } from "@/lib/tender";
 import type { ReadResult, SearchResult, Tender } from "@/lib/types";
@@ -17,6 +18,8 @@ export default function Tenders() {
   const [warn, setWarn] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
+  const pdfInput = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   useEffect(() => { setQ(new URLSearchParams(window.location.search).get("q") ?? ""); }, []);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
@@ -72,6 +75,17 @@ export default function Tenders() {
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   }
 
+  async function uploadPdf(file: File | undefined) {
+    if (!file) return;
+    setBusy(true); setWarn([]); setMsg(`Reading ${file.name} and checking it against your profile…`);
+    try {
+      const form = new FormData(); form.append("file", file);
+      const t = await api<Tender>("/tenders/upload", { form });
+      router.push(`/tenders/${t.id}`);
+    } catch (e) { setMsg((e as Error).message); setBusy(false); }
+    finally { if (pdfInput.current) pdfInput.current.value = ""; }
+  }
+
   async function addManual() {
     const title = prompt("Tender title");
     if (!title) return;
@@ -101,6 +115,8 @@ export default function Tenders() {
         <div className="row">
           <button className="primary" onClick={search} disabled={busy}>Find matching tenders</button>
           {pending > 0 && !busy && <button onClick={readPending}>Read {pending} unread</button>}
+          <button onClick={() => pdfInput.current?.click()} disabled={busy}>Upload tender PDF</button>
+          <input ref={pdfInput} type="file" accept="application/pdf,.pdf" hidden onChange={e => uploadPdf(e.target.files?.[0])} />
           <button onClick={loadSamples} disabled={busy}>Load sample tenders</button>
           <button onClick={addManual} disabled={busy}>+ Add manually</button>
         </div>

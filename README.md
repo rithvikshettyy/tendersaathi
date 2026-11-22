@@ -132,6 +132,7 @@ All routes are under `/api` and need `Authorization: Bearer <token>` except regi
 | GET / POST | `/tenders` | List tenders (open first, best win chance first) or add one manually |
 | POST | `/tenders/demo` | Load the 20 sample GeM-format bid PDFs as tenders and score them (call again to re-score) |
 | GET | `/demo/pdf/{name}` | Download a sample bid PDF (no auth; synthetic data) |
+| POST | `/tenders/upload` | Upload any tender PDF: adds it to your list, analysed and scored (same PDF again re-analyses it) |
 | POST | `/tenders/{id}/analyze` | Upload a tender PDF for eligibility analysis |
 | POST | `/tenders/{id}/intel` | Buyer risk, competitors and past offers |
 | GET / PUT | `/tenders/{id}/readiness` | Bid readiness checklist and score |

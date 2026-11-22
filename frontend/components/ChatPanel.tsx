@@ -2,6 +2,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
 import VoiceNote from "./VoiceNote";
+import { useLang } from "@/lib/i18n";
 
 interface Msg { role: "user" | "assistant"; content: string; sources?: string[]; error?: boolean; fresh?: boolean; lang?: string }
 export interface ChatPanelHandle { focus: () => void }
@@ -15,7 +16,9 @@ const SUGGESTIONS = [
 /** The RAG chat (profile, tenders, PDFs, schemes). Used by the Chat page and the floating widget. */
 const ChatPanel = forwardRef<ChatPanelHandle, { compact?: boolean }>(function ChatPanel({ compact = false }, ref) {
   const [langs, setLangs] = useState<Record<string, string>>({ en: "English" });
-  const [lang, setLang] = useState("en");
+  const site = useLang().lang;
+  const [lang, setLang] = useState(site);
+  useEffect(() => { setLang(site); }, [site]);   // replies follow the site language unless changed here
   const [log, setLog] = useState<Msg[]>([]);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,7 +69,7 @@ const ChatPanel = forwardRef<ChatPanelHandle, { compact?: boolean }>(function Ch
           </div>
         )}
         {log.map((m, i) => (
-          <div key={i} className={`bubble ${m.role === "user" ? "u" : "b"} ${m.error ? "err" : ""}`}>
+          <div key={i} className={`bubble ${m.role === "user" ? "u" : "b"} ${m.error ? "err" : ""}`} data-no-translate={m.error ? undefined : ""}>
             {m.content}
             {m.sources && m.sources.length > 0 && <><br /><small className="muted">Sources: {m.sources.join(", ")}</small></>}
             {m.role === "assistant" && !m.error && <VoiceNote text={m.content} lang={m.lang ?? lang} autoPlay={auto && !!m.fresh} />}

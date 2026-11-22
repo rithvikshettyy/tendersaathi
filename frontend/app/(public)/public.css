@@ -27,6 +27,10 @@
 /* theme toggle: same height as the pill buttons, round, icon centred (overrides the padding above) */
 .pnav .links button.theme-toggle{width:38px;padding:0;justify-content:center;border-radius:50%;margin:0 4px;flex:none}
 .pnav .links a{display:inline-flex}
+.pnav .links .lang-btn{padding:0 14px;gap:8px}
+.pnav .links .lang-menu button{display:block;height:auto;width:100%;padding:8px 10px;border:0;border-radius:8px;background:none;color:var(--fg)}
+.pnav .links .lang-menu button:hover{background:var(--hover)}
+.pnav .links .lang-menu button.on{background:var(--acc);color:var(--on-acc)}
 
 /* layout helpers */
 .wrap{max-width:1080px;margin:0 auto;padding:0 6vw}

@@ -1,4 +1,4 @@
-import datetime, json, logging, re, secrets, os
+import datetime, hashlib, json, logging, re, secrets, os
 from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, BackgroundTasks, Request
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 load_dotenv()
 from . import db, categories, serp, analyzer, schemes, readiness, rag, supabase_auth  # noqa: E402
 from . import ingest, evaluate, research, wa, tts  # noqa: E402
-from . import demo, pipeline, sources, youcom  # noqa: E402
+from . import demo, pipeline, sources, translate, youcom  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("tendersaathi.bot")
@@ -300,6 +300,43 @@ def list_tenders(u=Depends(me)):
     return [_tender_out(dict(r)) for r in rows]
 
 
+MAX_PDF = 15 * 1024 * 1024
+
+
+@app.post("/api/tenders/upload")
+async def upload_tender(file: UploadFile = File(...), u=Depends(me)):
+    """Upload any tender PDF: it becomes a tender in your list, analysed against your profile
+    (eligibility, extracted facts, win chance). Uploading the same PDF again re-analyses it."""
+    data = await file.read(MAX_PDF + 1)
+    if len(data) > MAX_PDF:
+        raise HTTPException(413, "PDF is over 15 MB")
+    if not data.startswith(b"%PDF-"):
+        raise HTTPException(400, "That file is not a PDF")
+    try:
+        text = analyzer.pdf_text(data)
+    except Exception as e:  # noqa: BLE001 - corrupt or encrypted PDF
+        raise HTTPException(400, f"Cannot read PDF: {str(e)[:120]}")
+    if len(text.strip()) < 50:
+        raise HTTPException(400, "No text found (scanned PDF? OCR not included)")
+    link = "upload:" + hashlib.sha256(data).hexdigest()[:16]
+    name = os.path.splitext(os.path.basename(file.filename or "Uploaded tender"))[0][:120]
+    is_gem = bool(pipeline.BIDNO_RE.search(text))
+    with db.conn() as c:
+        c.execute("""INSERT OR IGNORE INTO tenders(company_id,title,link,snippet,source,kind,org,category,
+                     found_via,read_status) VALUES(?,?,?,?,?,?,?,?,?,'done')""",
+                  (u["id"], name, link, "", "GeM (uploaded PDF)" if is_gem else "Uploaded PDF",
+                   "government" if is_gem else "manual", "", categories.tender_category(text[:4000]), "Upload"))
+        t = dict(c.execute("SELECT * FROM tenders WHERE company_id=? AND link=?", (u["id"], link)).fetchone())
+        t["intel"] = json.loads(t["intel"]) if t.get("intel") else None
+        if t["title"] == name:
+            t["title"] = ""  # let the PDF's own title (Item Category / Title of Work) win
+        a = pipeline.assess(t, u, text, "upload")
+        if not a["title"]:
+            a["title"] = name
+        _save_assessment(c, t["id"], a)
+        return _tender_out(dict(_tender(c, t["id"], u["id"])))
+
+
 @app.post("/api/tenders/{tid}/analyze")
 async def analyze(tid: int, file: UploadFile = File(...), u=Depends(me)):
     data = await file.read()
@@ -396,6 +433,27 @@ def get_schemes(u=Depends(me)):
 @app.get("/api/langs")
 def langs():
     return rag.LANGS
+
+
+class TranslateIn(BaseModel):
+    lang: str
+    texts: list[str]
+
+
+@app.post("/api/translate")
+def translate_ui(body: TranslateIn, request: Request):
+    """Translate UI strings with Sarvam (public so the landing page can switch language too;
+    capped per request and per visitor, cached per string)."""
+    if body.lang not in rag.LANGS:
+        raise HTTPException(400, "Unsupported language")
+    if len(body.texts) > translate.MAX_TEXTS or any(len(t) > translate.MAX_CHARS for t in body.texts):
+        raise HTTPException(413, f"Send at most {translate.MAX_TEXTS} strings of {translate.MAX_CHARS} characters")
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or \
+        (request.client.host if request.client else "?")
+    try:
+        return translate.translate(body.texts, body.lang, ip)
+    except translate.TranslateError as e:
+        raise HTTPException(429 if "limit" in str(e) else 502, str(e))
 
 
 @app.post("/api/chat")
