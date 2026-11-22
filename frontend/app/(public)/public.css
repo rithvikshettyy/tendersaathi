@@ -171,3 +171,10 @@
 .or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin:16px 0}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .pub ::placeholder{color:var(--muted);opacity:1}
+
+/* ===== 404 ===== */
+.nf{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:130px 6vw 80px}
+.nf-code{font-size:clamp(96px,18vw,180px);font-weight:600;letter-spacing:-.06em;line-height:1;margin:0 0 8px}
+.nf .lead{margin-bottom:28px}
+.nf-links{margin-top:26px;font-size:14px}
+.nf-links a{color:var(--fg)}

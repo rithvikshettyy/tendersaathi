@@ -235,7 +235,7 @@ table td{padding:3px 12px 3px 0;vertical-align:top}
 .lang-btn{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font-size:14px;white-space:nowrap}
 .lang-btn:hover{background:var(--hover)}
 .lang-switch.sm .lang-btn{height:38px;border-radius:999px;background:transparent;padding:0 14px}
-.lang-spin{width:12px;height:12px;border:2px solid var(--muted);border-right-color:transparent;border-radius:50%;animation:sp .7s linear infinite}
+.lang-spin{flex:none;box-sizing:border-box;width:16px;height:16px;border:2px solid var(--muted);border-right-color:transparent;border-radius:50%;animation:sp .7s linear infinite}
 .lang-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:40;min-width:170px;max-height:min(420px,70vh);overflow:auto;margin:0;padding:6px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 50px -20px rgba(0,0,0,.45)}
 .lang-menu button{display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-radius:8px;background:none;color:var(--fg);font-size:14px;height:auto}
 .lang-menu button:hover{background:var(--hover)}

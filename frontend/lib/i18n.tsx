@@ -86,9 +86,17 @@ function attrSources(e: Element) {
   return o;
 }
 
+/* Strings Sarvam could not translate right now: retried after a pause, never in a tight loop. */
+const RETRY_MS = 120_000;
+const failed = new Map<string, Map<string, number>>();
+const failedFor = (lang: string) => { let m = failed.get(lang); if (!m) { m = new Map(); failed.set(lang, m); } return m; };
+const isFailed = (lang: string, t: string) => (failedFor(lang).get(t) ?? 0) > Date.now();
+const settled = (lang: string, t: string) => cacheFor(lang).has(t) || isFailed(lang, t);
+
 async function fetchTranslations(lang: string, texts: string[]): Promise<{ missing: number; error?: string }> {
   const cache = cacheFor(lang);
-  const need = [...new Set(texts)].filter(t => !cache.has(t));
+  const need = [...new Set(texts)].filter(t => !settled(lang, t));
+  const fail = (xs: string[]) => { const until = Date.now() + RETRY_MS; xs.forEach(x => failedFor(lang).set(x, until)); };
   let missing = 0, error: string | undefined;
   for (let i = 0; i < need.length; i += BATCH) {
     const chunk = need.slice(i, i + BATCH);
@@ -96,10 +104,14 @@ async function fetchTranslations(lang: string, texts: string[]): Promise<{ missi
       const res = await fetch("/api/translate", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lang, texts: chunk.map(t => t.slice(0, 600)) }) });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { error = data.detail || `Translation failed (${res.status})`; missing += chunk.length; continue; }
-      (data.translations as string[]).forEach((tr, k) => { if (tr && tr !== chunk[k]) cache.set(chunk[k], tr); });
+      if (!res.ok) { error = data.detail || `Translation failed (${res.status})`; missing += chunk.length; fail(chunk); continue; }
+      // Unchanged output is a real answer for names/numbers (cache it) unless the server says some strings failed.
+      const partial = (data.missing || 0) > 0;
+      (data.translations as string[]).forEach((tr, k) => {
+        if (tr && (tr !== chunk[k] || !partial)) cache.set(chunk[k], tr); else fail([chunk[k]]);
+      });
       missing += data.missing || 0;
-    } catch { error = "Translation service unreachable"; missing += chunk.length; }
+    } catch { error = "Translation service unreachable"; missing += chunk.length; fail(chunk); }
   }
   if (need.length) persist(lang);
   return { missing, error };
@@ -154,7 +166,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           ...els.flatMap(e => Object.values(attrSources(e)).map(v => v.trim()))].filter(t => HAS_WORD.test(t));
         const cache = cacheFor(l);
         apply(l, nodes, els);                           // instant for cached strings
-        if (texts.some(t => !cache.has(t))) {
+        if (texts.some(t => !settled(l, t))) {
           setBusy(true);
           const r = await fetchTranslations(l, texts);
           setError(r.error ?? "");
@@ -179,8 +191,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try { saved = localStorage.getItem(KEY) || "en"; } catch { /* ignore */ }
     if (saved !== "en" && LANGS.some(([k]) => k === saved)) setLang(saved);
     let t: ReturnType<typeof setTimeout> | undefined;
-    const obs = new MutationObserver(() => {
+    const own = (n: Node) => (n instanceof Element ? n : n.parentElement)?.closest("[data-no-translate]");
+    const obs = new MutationObserver(records => {
       if (langRef.current === "en") return;
+      if (records.every(r => own(r.target))) return;   // changes inside the language button / chat: ignore
       clearTimeout(t);
       t = setTimeout(pass, 250);
     });
@@ -207,11 +221,12 @@ export function LanguageSwitch({ className = "lang-switch" }: { className?: stri
     <div className={`lang-wrap ${className}`} ref={box} data-no-translate>
       <button type="button" className="lang-btn" onClick={() => setOpen(o => !o)} aria-haspopup="listbox" aria-expanded={open}
         title={error || (busy ? "Translating…" : "Change language")}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
-        </svg>
+        {busy ? <i className="lang-spin" aria-label="Translating" /> : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+          </svg>
+        )}
         <span>{label}</span>
-        {busy && <i className="lang-spin" aria-label="Translating" />}
       </button>
       {open && (
         <ul className="lang-menu" role="listbox">
