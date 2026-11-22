@@ -336,8 +336,22 @@ def tts_endpoint(body: TTSIn, u=Depends(me)):
 
 
 # ---------- WhatsApp bot ----------
-HELP = ("TenderSaathi 🤝\n• TODAY / आज: today's tenders\n• 1–10: risk report for that tender\n"
-        "• Forward a tender PDF: eligibility check")
+GREETINGS = {"hi", "hii", "hiii", "hello", "hey", "heyy", "hlo", "helo", "namaste", "namaskar", "menu",
+             "start", "help", "नमस्ते", "हाय", "हेलो"}
+MENU = [("menu_today", "📋 Today's tenders"), ("menu_best", "🏆 Which to bid?"), ("menu_pdf", "📄 Check a PDF")]
+
+
+def send_menu(to):
+    return wa.send_buttons(to, "Namaste 🙏 I'm TenderSaathi. What do you want to do?\n\n"
+                               "📋 See today's matching tenders\n🏆 Get my bid / no-bid pick\n"
+                               "📄 Send a tender PDF and I'll tell you if you should bid", MENU)
+
+
+def send_picker(to, items):
+    if items:
+        wa.send_list(to, "Tap a tender for its risk report and bid / no-bid call.", "Pick a tender",
+                     [(f"t_{i['digest_rank']}", f"{i['digest_rank']}. {i['title']}",
+                       f"{i.get('org') or '-'} · {wa._days(i)}") for i in items])
 
 
 def _today():
@@ -355,21 +369,48 @@ def _window_open():
     return datetime.datetime.now() - datetime.datetime.fromisoformat(last) < datetime.timedelta(hours=23)
 
 
+def _digest(co):
+    warn = ""
+    if not evaluate._stored(_today()):  # skip ingest (and SerpApi spend) if today's digest exists
+        summary = ingest.run(co)
+        if summary["quota"]:
+            warn = "SerpApi quota reached: today's list uses saved tenders only."
+        elif summary["errors"]:
+            warn = "Some live sources failed today; list may be shorter."
+    d = evaluate.pick(co)
+    log.info("digest day=%s items=%d warn=%s", _today(), len(d["items"]), bool(warn))
+    return d, warn
+
+
+def run_best():
+    """Bid / no-bid call on today's top 3, from match score (no extra API spend)."""
+    to = os.getenv("OWNER_PHONE", "")
+    try:
+        d, _ = _digest(db.owner())
+        items = sorted(d["items"], key=lambda i: -(i.get("score") or 0))[:3]
+        if not items:
+            return wa.send_text(to, "No strong tender matches today, so nothing worth bidding on yet.")
+        lines = ["🏆 My picks for you today", ""]
+        for i in items:
+            lines += [f"{i['digest_rank']}. {i['title'][:100]}",
+                      f"   {i.get('org') or '-'} · {wa._days(i)} · score {round(i.get('score') or 0)}",
+                      f"   {wa.bid_call(i.get('score'))}", ""]
+        lines.append("Tap a tender below for a full risk check before you bid.")
+        wa.send_text(to, "\n".join(lines))
+        send_picker(to, d["items"])
+    except Exception as e:  # noqa: BLE001
+        log.exception("best failed")
+        wa.send_text(to, f"Couldn't pick tenders: {str(e)[:200]}")
+
+
 def run_digest(force_text=False):
     to, co = os.getenv("OWNER_PHONE", ""), db.owner()
     try:
-        warn = ""
-        if not evaluate._stored(_today()):  # skip ingest (and SerpApi spend) if today's digest exists
-            summary = ingest.run(co)
-            if summary["quota"]:
-                warn = "SerpApi quota reached: today's list uses saved tenders only."
-            elif summary["errors"]:
-                warn = "Some live sources failed today; list may be shorter."
-        d = evaluate.pick(co)
-        log.info("digest day=%s items=%d warn=%s", _today(), len(d["items"]), bool(warn))
+        d, warn = _digest(co)
         if force_text or _window_open():
             for m in wa.format_digest(d["items"], d["reasons"], warn):
                 wa.send_text(to, m)
+            send_picker(to, d["items"])
         else:
             wa.send_template(to, "daily_tenders", os.getenv("TEMPLATE_LANG", "en"), [len(d["items"])])
     except Exception as e:  # noqa: BLE001 - always tell the owner instead of failing silently
@@ -388,8 +429,10 @@ def digest_run(bg: BackgroundTasks, x_cron_secret: str = Header("")):
 
 def _drill(item):
     lines = [f"🔎 {item['digest_rank']}. {item['title'][:120]}", f"Buyer: {item.get('org') or '-'}", ""]
+    risk = None
     try:
         intel = serp.tender_intel(item["title"], item.get("org") or "")
+        risk = intel["risk_level"]
         lines.append(f"Risk: {intel['risk_level']} (score {intel['risk_score']})")
         for f in intel["flags"][:3]:
             lines.append(f"• {f['signal']}: {f['source']}")
@@ -404,7 +447,8 @@ def _drill(item):
             lines += [f"• {f['title'][:90]}\n  {f['url']}" for f in found]
     except research.ResearchError as e:
         lines.append(f"Research unavailable ({str(e)[:80]})")
-    lines += ["", "Best-effort from public sources. Verify on the official portal."]
+    lines += ["", f"👉 {wa.bid_call(item.get('score'), risk)}",
+              "", "Best-effort from public sources. Verify on the official portal."]
     return "\n".join(lines)
 
 
@@ -421,24 +465,37 @@ def _eligibility(data):
     icon = {"red": "🔴", "amber": "🟠", "green": "🟢"}
     flags = sorted(res["flags"], key=lambda f: ["red", "amber", "green"].index(f["level"]))
     return "\n".join([f"📄 Eligibility: {res['verdict']} (scope match {res['scope_match_pct']}%)", ""] +
-                     [f"{icon[f['level']]} {f['msg']}" for f in flags[:8]])
+                     [f"{icon[f['level']]} {f['msg']}" for f in flags[:8]] + ["", f"👉 {wa.pdf_call(res['verdict'])}"])
 
 
 def handle_message(msg):
     to = os.getenv("OWNER_PHONE", "")
     kind = msg.get("type")
     log.info("wa_msg id=%s type=%s", msg.get("id"), kind)
+    if kind == "interactive":  # tap on a menu button or list row
+        it = msg.get("interactive", {})
+        choice = (it.get("button_reply") or it.get("list_reply") or {}).get("id", "")
+        if choice == "menu_today":
+            return run_digest(force_text=True)
+        if choice == "menu_best":
+            return run_best()
+        if choice == "menu_pdf":
+            return wa.send_text(to, "📄 Send or forward the tender PDF here (under 10 MB).\n"
+                                    "I'll check eligibility and tell you whether to bid.")
+        if choice.startswith("t_") and choice[2:].isdigit():
+            return _send_drill(to, int(choice[2:]))
+        return send_menu(to)
     if kind == "text":
         body = msg["text"]["body"].strip().lower()
+        if re.sub(r"[^\w\s]", "", body).strip() in GREETINGS:
+            return send_menu(to)
         if body in ("today", "aaj", "आज"):
             return run_digest(force_text=True)
+        if body in ("bid", "best", "pick"):
+            return run_best()
         if body.isdigit() and 1 <= int(body) <= evaluate.DIGEST_SIZE:
-            d = evaluate._stored(_today())
-            item = next((i for i in (d or {}).get("items", []) if i["digest_rank"] == int(body)), None)
-            if not item:
-                return wa.send_text(to, "No digest yet today. Send TODAY.")
-            return wa.send_text(to, _drill(item))
-        return wa.send_text(to, HELP)
+            return _send_drill(to, int(body))
+        return send_menu(to)
     if kind == "document":
         doc = msg["document"]
         if doc.get("mime_type") != "application/pdf":
@@ -448,7 +505,16 @@ def handle_message(msg):
         except Exception as e:  # noqa: BLE001
             return wa.send_text(to, f"Couldn't download the file ({str(e)[:80]}).")
         return wa.send_text(to, _eligibility(data))
-    return wa.send_text(to, HELP)
+    return send_menu(to)
+
+
+def _send_drill(to, rank):
+    d = evaluate._stored(_today())
+    item = next((i for i in (d or {}).get("items", []) if i["digest_rank"] == rank), None)
+    if not item:
+        return wa.send_text(to, "No tender list yet today. Tap 📋 Today's tenders first.")
+    wa.send_text(to, "🔎 Checking risk signals, give me a few seconds…")
+    return wa.send_text(to, _drill(item))
 
 
 @app.get("/webhook")

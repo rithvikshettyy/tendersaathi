@@ -30,6 +30,38 @@ def send_text(to, body):
     return send({"to": to, "type": "text", "text": {"body": body[:4096]}})
 
 
+def send_buttons(to, body, buttons):
+    """Reply buttons: Meta allows max 3, title max 20 chars."""
+    return send({"to": to, "type": "interactive", "interactive": {
+        "type": "button", "body": {"text": body[:1024]},
+        "action": {"buttons": [{"type": "reply", "reply": {"id": i, "title": t[:20]}} for i, t in buttons[:3]]}}})
+
+
+def send_list(to, body, button, rows):
+    """List picker: max 10 rows, title 24 chars, description 72 chars."""
+    return send({"to": to, "type": "interactive", "interactive": {
+        "type": "list", "body": {"text": body[:1024]},
+        "action": {"button": button[:20], "sections": [{"title": "Tenders", "rows": [
+            {"id": i, "title": t[:24], "description": d[:72]} for i, t, d in rows[:10]]}]}}})
+
+
+def bid_call(score, risk_level=None):
+    """Bid / no-bid from digest score (0-100) and optional public risk level."""
+    if risk_level == "High":
+        return "❌ Don't bid: high risk signals around this buyer/tender."
+    if (score or 0) >= 60:
+        return "✅ Bid: strong match for your profile."
+    if (score or 0) >= 40:
+        return "🤔 Maybe: decent match. Send the tender PDF to check eligibility."
+    return "❌ Skip: weak match for your profile."
+
+
+def pdf_call(verdict):
+    return {"Well aligned": "✅ Bid: you meet the key conditions.",
+            "Partially aligned": "🤔 Bid only if you can fix the 🔴/🟠 points above.",
+            }.get(verdict, "❌ Don't bid: too many conditions you don't meet.")
+
+
 def send_template(to, name, lang, params):
     return send({"to": to, "type": "template", "template": {
         "name": name, "language": {"code": lang},
@@ -105,4 +137,7 @@ if __name__ == "__main__":
     out = format_digest(items, [{"rank": 1, "hi": "हिंदी", "en": "english"}])
     assert len(out) == 1 and "⭐ 1. Tender 1" in out[0] and "10. Tender 10" in out[0] and "हिंदी" in out[0]
     assert "No strong" in format_digest([], [])[0]
+    assert bid_call(80).startswith("✅") and bid_call(80, "High").startswith("❌")
+    assert bid_call(45).startswith("🤔") and bid_call(10).startswith("❌") and bid_call(None).startswith("❌")
+    assert pdf_call("Well aligned").startswith("✅") and pdf_call("Not aligned").startswith("❌")
     print("wa self-check ok")
