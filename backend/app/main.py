@@ -5,7 +5,7 @@ from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 load_dotenv()
-from . import db, categories, serp, analyzer, schemes, readiness, rag  # noqa: E402
+from . import db, categories, serp, analyzer, schemes, readiness, rag, supabase_auth  # noqa: E402
 
 db.init()
 app = FastAPI(title="TenderSaathi")
@@ -55,6 +55,16 @@ def me(authorization: Optional[str] = Header(None)):
     with db.conn() as c:
         r = c.execute("SELECT c.* FROM companies c JOIN sessions s ON s.company_id=c.id WHERE s.token=?",
                       (token,)).fetchone()
+        if not r and supabase_auth.looks_like_jwt(token):
+            try:
+                u = supabase_auth.verify(token)
+            except supabase_auth.SupabaseAuthError as e:
+                raise HTTPException(401, str(e))
+            r = c.execute("SELECT * FROM companies WHERE email=?", (u["email"],)).fetchone()
+            if not r:  # first Google login: create an empty company, finished on the profile page
+                cur = c.execute("INSERT INTO companies(name,email,pw_hash,salt) VALUES(?,?,?,?)",
+                                (u["name"], u["email"], "", ""))
+                r = c.execute("SELECT * FROM companies WHERE id=?", (cur.lastrowid,)).fetchone()
     if not r:
         raise HTTPException(401, "Not logged in")
     return db.company_public(r)

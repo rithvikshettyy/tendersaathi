@@ -7,3 +7,5 @@ coolvetica/
 geist*.woff2
 *.zip
 .originkit/
+.env*.local
+.env

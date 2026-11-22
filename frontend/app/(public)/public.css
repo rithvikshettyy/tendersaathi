@@ -158,3 +158,9 @@
 .pub .lead a{color:#B8758C}
 .phero button:not(.primary){background:rgba(26,25,25,.7);border-color:#9A948A}
 .phero button:not(.primary):hover{background:#1A1919}
+
+/* ===== google button / divider ===== */
+.pub button.google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:10px;padding:11px 16px;font-weight:500}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin:16px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.pub ::placeholder{color:var(--muted);opacity:1}

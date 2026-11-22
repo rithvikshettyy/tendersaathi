@@ -20,6 +20,9 @@ export default function ProfilePage() {
   return (
     <div className="card">
       <h2>Company profile</h2>
+      {!me.products && !me.services && (
+        <p className="muted">Welcome! Tell us what you make or provide so we can set your tender categories.</p>
+      )}
       <ProfileForm initial={me} submitLabel="Save profile" onSubmit={save} />
       {msg && <p className="muted">{msg}</p>}
     </div>

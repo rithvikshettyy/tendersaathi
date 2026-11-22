@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { api, tokenStore } from "./api";
+import { api, signOutEverywhere, tokenStore } from "./api";
 import type { Company } from "./types";
 
 interface Ctx { me: Company; setMe: (c: Company) => void; logout: () => void }
@@ -23,6 +23,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [router]);
 
   if (!me) return <p className="muted pad">Loading…</p>;
-  const logout = () => { tokenStore.clear(); router.replace("/login"); };
+  const logout = () => { signOutEverywhere().finally(() => router.replace("/login")); };
   return <AuthCtx.Provider value={{ me, setMe, logout }}>{children}</AuthCtx.Provider>;
 }
