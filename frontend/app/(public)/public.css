@@ -34,7 +34,9 @@
 
 /* layout helpers */
 .wrap{max-width:1080px;margin:0 auto;padding:0 6vw}
-.sec{padding:84px 0}.sec.tight{padding:48px 0}
+.sec{padding-top:84px;padding-bottom:84px}.sec.tight{padding-top:48px;padding-bottom:48px}
+/* keep a gutter once the screen is narrower than the content column (desktop layout is unchanged) */
+@media(max-width:1140px){.sec,.sec.tight{padding-left:max(20px,6vw);padding-right:max(20px,6vw)}}
 .eyebrow{font-size:14px;font-weight:600;color:var(--acc2);margin-bottom:14px;display:block}
 .h-xl{font-size:clamp(36px,6vw,64px);line-height:1.05;letter-spacing:-.035em;margin:0 0 20px;font-weight:600}
 .h-lg{font-size:clamp(26px,3.6vw,38px);line-height:1.15;letter-spacing:-.025em;margin:0 0 14px;font-weight:600}
@@ -201,7 +203,7 @@
   .phero{padding:112px 0 56px}
   .pub main>section.wrap:first-child{padding-top:112px!important}
   .pub .auth{margin:96px auto 40px}
-  .sec{padding:56px 0}.sec.tight{padding:32px 0}
+  .sec{padding-top:56px;padding-bottom:56px}.sec.tight{padding-top:32px;padding-bottom:32px}
   .lead{font-size:16px}
   .hero-mock{margin-top:40px}
   .cta-row{flex-direction:column}.cta-row>a{display:block;width:100%}.cta-row button{width:100%}

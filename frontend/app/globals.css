@@ -326,3 +326,33 @@ table td{overflow-wrap:anywhere}
   .chips-q button{min-height:40px}
 }
 @media(max-width:760px){.d-head a{padding:12px 8px;margin:-12px -8px}}
+
+/* ===== mobile, round 2 ===== */
+@media(max-width:760px){
+  /* floating chat button: icon only, so it hides far less content */
+  .fab{width:52px;height:52px;padding:0;justify-content:center;border-radius:50%}
+  .fab span{display:none}
+  .shell{min-height:100dvh}
+}
+@media(max-width:560px){
+  .chatwin{height:min(88dvh,calc(100dvh - 16px))}
+}
+/* very small phones (320px) */
+@media(max-width:359px){
+  .content{padding-left:12px;padding-right:12px}
+  .topbar{padding-left:12px;padding-right:12px}
+  .d-stats{grid-template-columns:1fr}
+  .tb-icon,.theme-toggle,.lang-btn,.tb-user>button{width:40px;height:40px;min-height:40px}
+  .side nav a{letter-spacing:-.01em;padding-left:0;padding-right:0}
+}
+/* landscape phones and other short screens: sidebar must never overflow the screen */
+@media(max-height:480px) and (min-width:761px){
+  .side{overflow-y:auto;padding-top:10px;padding-bottom:10px}
+  .side-card{display:none}
+  .side nav a{padding-top:8px;padding-bottom:8px}
+  .chatwin{height:calc(100dvh - 96px)}
+}
+@media(max-width:359px){
+  .tb-title{flex:1 1 100%}
+  .tb-icon{margin-left:auto}
+}
