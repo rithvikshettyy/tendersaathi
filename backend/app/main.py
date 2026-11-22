@@ -2,8 +2,6 @@ import json, secrets, os
 from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 load_dotenv()
@@ -11,7 +9,6 @@ from . import db, categories, serp, analyzer, schemes, readiness, rag  # noqa: E
 
 db.init()
 app = FastAPI(title="TenderSaathi")
-STATIC = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend")
 
 
 class Profile(BaseModel):
@@ -261,8 +258,5 @@ def chat(body: ChatIn, u=Depends(me)):
 
 
 @app.get("/")
-def index():
-    return FileResponse(os.path.join(STATIC, "index.html"))
-
-
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
+def health():
+    return {"status": "ok", "app": "TenderSaathi API"}
