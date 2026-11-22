@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { api, tokenStore } from "@/lib/api";
 import type { Company } from "@/lib/types";
 
@@ -17,7 +17,10 @@ export default function AuthCallback() {
       const code = params.get("code");
       if (!code) { setErr("Missing sign-in code. Please try again."); return; }
 
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      let result;
+      try { result = await getSupabase().auth.exchangeCodeForSession(code); }
+      catch (e) { setErr((e as Error).message); return; }
+      const { data, error } = result;
       if (error || !data.session) { setErr(error?.message || "Sign-in failed."); return; }
       tokenStore.setSupabase(data.session.access_token);
 

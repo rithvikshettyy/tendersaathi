@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase, supabaseConfigured } from "./supabase";
 
 const PROVIDER_KEY = "ts_provider";
 
@@ -13,14 +13,14 @@ export const tokenStore = {
 };
 
 export async function signOutEverywhere() {
-  if (tokenStore.isSupabase()) await supabase.auth.signOut().catch(() => {});
+  if (tokenStore.isSupabase() && supabaseConfigured) await getSupabase().auth.signOut().catch(() => {});
   tokenStore.clear();
 }
 
 /** Supabase access tokens expire hourly; getSession() refreshes them transparently. */
 async function freshToken(): Promise<string | null> {
-  if (tokenStore.isSupabase()) {
-    const { data } = await supabase.auth.getSession();
+  if (tokenStore.isSupabase() && supabaseConfigured) {
+    const { data } = await getSupabase().auth.getSession();
     if (data.session) { localStorage.setItem("ts_token", data.session.access_token); return data.session.access_token; }
     return null;
   }
