@@ -2,12 +2,11 @@ import datetime, json, logging, re, secrets, os
 from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, BackgroundTasks, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 load_dotenv()
-from . import db, categories, serp, analyzer, schemes, readiness, rag  # noqa: E402
+from . import db, categories, serp, analyzer, schemes, readiness, rag, supabase_auth  # noqa: E402
 from . import ingest, evaluate, research, wa  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -15,7 +14,6 @@ log = logging.getLogger("tendersaathi.bot")
 db.init()
 ingest.load_seed(ingest.ensure_owner())  # Render disk is wiped on restart: reseed every boot
 app = FastAPI(title="TenderSaathi")
-STATIC = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend")
 
 
 class Profile(BaseModel):
@@ -62,6 +60,16 @@ def me(authorization: Optional[str] = Header(None)):
     with db.conn() as c:
         r = c.execute("SELECT c.* FROM companies c JOIN sessions s ON s.company_id=c.id WHERE s.token=?",
                       (token,)).fetchone()
+        if not r and supabase_auth.looks_like_jwt(token):
+            try:
+                u = supabase_auth.verify(token)
+            except supabase_auth.SupabaseAuthError as e:
+                raise HTTPException(401, str(e))
+            r = c.execute("SELECT * FROM companies WHERE email=?", (u["email"],)).fetchone()
+            if not r:  # first Google login: create an empty company, finished on the profile page
+                cur = c.execute("INSERT INTO companies(name,email,pw_hash,salt) VALUES(?,?,?,?)",
+                                (u["name"], u["email"], "", ""))
+                r = c.execute("SELECT * FROM companies WHERE id=?", (cur.lastrowid,)).fetchone()
     if not r:
         raise HTTPException(401, "Not logged in")
     return db.company_public(r)
@@ -411,8 +419,5 @@ async def webhook(request: Request, bg: BackgroundTasks):
 
 
 @app.get("/")
-def index():
-    return FileResponse(os.path.join(STATIC, "index.html"))
-
-
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
+def health():
+    return {"status": "ok", "app": "TenderSaathi API"}

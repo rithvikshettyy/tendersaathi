@@ -1,0 +1,10 @@
+node_modules/
+.next/
+next-env.d.ts
+helvetica/
+coolvetica/
+geist*.woff2
+*.zip
+.originkit/
+.env*.local
+.env
