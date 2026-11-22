@@ -4,7 +4,6 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { api, tokenStore } from "@/lib/api";
 import ProfileForm from "@/components/ProfileForm";
-import SiteNav from "@/components/SiteNav";
 import type { Profile } from "@/lib/types";
 
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
@@ -32,7 +31,6 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   return (
     <>
-      <SiteNav />
       <div className="auth">
         <div className="card">
           <h2>{signup ? "Register your company" : "Welcome back"}</h2>
