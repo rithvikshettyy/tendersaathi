@@ -1,5 +1,6 @@
 import { getSupabase, supabaseConfigured } from "./supabase";
 import { route as demoRoute } from "./demo";
+import { tap } from "./cloud";
 
 const PROVIDER_KEY = "ts_provider";
 
@@ -39,8 +40,11 @@ async function freshToken(): Promise<string | null> {
 interface Opts { method?: string; body?: unknown; form?: FormData }
 
 /** Every call goes through the sample-data router: real data wins, sample data only fills gaps (see lib/demo.ts). */
-export function api<T>(path: string, opts: Opts = {}): Promise<T> {
-  return demoRoute<T>(path, opts, () => rawApi<T>(path, opts));
+export async function api<T>(path: string, opts: Opts = {}): Promise<T> {
+  const result = await demoRoute<T>(path, opts, () => rawApi<T>(path, opts));
+  // Mirror what this call produced to Supabase (Google logins). Fire and forget, never throws.
+  try { tap(path, (opts.method ?? (opts.body !== undefined || opts.form ? "POST" : "GET")).toUpperCase(), opts.body, result); } catch { /* best effort */ }
+  return result;
 }
 
 async function rawApi<T>(path: string, { method, body, form }: Opts = {}): Promise<T> {
@@ -77,5 +81,7 @@ export async function apiBlob(path: string, body: unknown): Promise<Blob> {
     const data = await res.json().catch(() => ({}));
     throw new ApiError(res.status, data.detail || res.statusText || `Request failed (${res.status})`);
   }
-  return res.blob();
+  const blob = await res.blob();
+  try { tap(path, "POST", body, null); } catch { /* best effort */ }
+  return blob;
 }
