@@ -27,7 +27,7 @@ export default function AuthCallback() {
       try {
         const me = await api<Company>("/me"); // backend creates the company on first Google login
         router.replace(me.products || me.services ? "/dashboard" : "/profile?welcome=1");
-      } catch (e) { setErr((e as Error).message); }
+      } catch (e) { setErr((e as Error).message || "Something went wrong after sign-in."); }
     })();
   }, [router]);
 

@@ -40,6 +40,14 @@ export async function api<T>(path: string, { method, body, form }: Opts = {}): P
     body: form ?? (body !== undefined ? JSON.stringify(body) : undefined),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || res.statusText);
+  if (!res.ok) {
+    const unreachable = res.status === 404 || res.status === 502 || res.status === 504;
+    throw new Error(
+      data.detail ||
+        (unreachable ? "Cannot reach the TenderSaathi server. The backend may not be deployed yet." : "") ||
+        res.statusText ||
+        `Request failed (${res.status})`,
+    );
+  }
   return data as T;
 }
