@@ -543,9 +543,8 @@ def _digest(co):
     return d, warn
 
 
-def run_best():
+def run_best(to):
     """Bid / no-bid call on today's top 3, from match score (no extra API spend)."""
-    to = os.getenv("OWNER_PHONE", "")
     try:
         d, _ = _digest(db.owner())
         items = sorted(d["items"], key=lambda i: -(i.get("score") or 0))[:3]
@@ -564,8 +563,8 @@ def run_best():
         wa.send_text(to, f"Couldn't pick tenders: {str(e)[:200]}")
 
 
-def run_digest(force_text=False):
-    to, co = os.getenv("OWNER_PHONE", ""), db.owner()
+def run_digest(force_text=False, to=None):
+    to, co = to or os.getenv("OWNER_PHONE", ""), db.owner()
     try:
         d, warn = _digest(co)
         if force_text or _window_open():
@@ -630,16 +629,16 @@ def _eligibility(data):
 
 
 def handle_message(msg):
-    to = os.getenv("OWNER_PHONE", "")
+    to = msg.get("from", "")  # reply to whoever wrote in
     kind = msg.get("type")
     log.info("wa_msg id=%s type=%s", msg.get("id"), kind)
     if kind == "interactive":  # tap on a menu button or list row
         it = msg.get("interactive", {})
         choice = (it.get("button_reply") or it.get("list_reply") or {}).get("id", "")
         if choice == "menu_today":
-            return run_digest(force_text=True)
+            return run_digest(force_text=True, to=to)
         if choice == "menu_best":
-            return run_best()
+            return run_best(to)
         if choice == "menu_pdf":
             return wa.send_text(to, "📄 Send or forward the tender PDF here (under 10 MB).\n"
                                     "I'll check eligibility and tell you whether to bid.")
@@ -651,9 +650,9 @@ def handle_message(msg):
         if re.sub(r"[^\w\s]", "", body).strip() in GREETINGS:
             return send_menu(to)
         if body in ("today", "aaj", "आज"):
-            return run_digest(force_text=True)
+            return run_digest(force_text=True, to=to)
         if body in ("bid", "best", "pick"):
-            return run_best()
+            return run_best(to)
         if body.isdigit() and 1 <= int(body) <= evaluate.DIGEST_SIZE:
             return _send_drill(to, int(body))
         return send_menu(to)
@@ -696,12 +695,11 @@ async def webhook(request: Request, bg: BackgroundTasks):
     for entry in body.get("entry", []):
         for ch in entry.get("changes", []):
             for msg in ch.get("value", {}).get("messages", []):
-                if _digits(msg.get("from")) != owner:
-                    continue
                 with db.conn() as c:  # Meta retries slow webhooks: process each message id once
                     if not c.execute("INSERT OR IGNORE INTO seen_msgs VALUES(?)", (msg["id"],)).rowcount:
                         continue
-                db.kv_set("last_inbound_at", datetime.datetime.now().isoformat())
+                if _digits(msg.get("from")) == owner:  # 24h window only matters for the owner's daily digest
+                    db.kv_set("last_inbound_at", datetime.datetime.now().isoformat())
                 bg.add_task(handle_message, msg)
     return {"ok": True}
 
