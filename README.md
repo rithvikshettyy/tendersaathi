@@ -19,7 +19,7 @@ Register your business once. TenderSaathi places you in tender categories, finds
 | **Buyer risk and competitors** | Public search signals about the issuing organisation (disputes, delays, blacklisting), likely competitors and past offer values. |
 | **Bid readiness score** | 0 to 100 from a 15-item document checklist, profile completeness, PDF alignment and time left, with the gaps listed. |
 | **Schemes and benefits** | 13 central MSME, startup and procurement schemes matched to your profile (EMD exemption, purchase preference, CGTMSE, PMEGP and others). |
-| **Multilingual assistant** | RAG chatbot over your profile, tenders, PDFs and schemes, answering in 11 languages through Sarvam. |
+| **Multilingual assistant** | RAG chatbot over your profile, tenders, PDFs and schemes, answering in 11 languages through Sarvam. Every reply has a WhatsApp-style voice note (play/pause, progress, optional auto-play). |
 | **Assisted form filling** | A ready data pack and step list for portal forms. See [what it does not do](#what-it-does-not-do). |
 | **Sign-in** | Google (via Supabase) or email and password. |
 
@@ -113,6 +113,7 @@ All routes are under `/api` and need `Authorization: Bearer <token>` except regi
 | GET | `/tenders/{id}/fillpack` | Pre-filled form data and steps |
 | GET | `/schemes` | Matched government schemes |
 | GET / POST | `/langs`, `/chat` | Languages; RAG chat |
+| POST | `/tts` | Read a chat answer aloud (MP3, Sarvam Bulbul) |
 
 Onboarding saves through `PUT /me` with: `name, gstin, udyam, state, city, size, turnover_cr, years, certifications, products, services, women_owned, startup`. It expects the saved company back, including `categories`.
 

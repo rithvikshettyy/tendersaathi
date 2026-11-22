@@ -60,3 +60,16 @@ export async function api<T>(path: string, { method, body, form }: Opts = {}): P
   }
   return data as T;
 }
+
+/** POST JSON and get binary back (e.g. /tts audio). Same auth and error handling as api(). */
+export async function apiBlob(path: string, body: unknown): Promise<Blob> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = await freshToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`/api${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, data.detail || res.statusText || `Request failed (${res.status})`);
+  }
+  return res.blob();
+}
