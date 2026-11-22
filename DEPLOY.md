@@ -31,4 +31,4 @@ After the first deploy, in Supabase -> Authentication -> URL Configuration:
 
 ## Fonts
 
-Helvetica Neue files are licensed and gitignored (`frontend/public/fonts/`). A Git-based deploy will not contain them and falls back to Inter. Add them to the deploy yourself only if your licence covers web use.
+Helvetica Neue (Regular, Medium, Semibold WOFF2) lives in `frontend/public/fonts/` and is served to every visitor, so keep it only if your licence covers web use. If the files are missing, the site falls back to Inter.
