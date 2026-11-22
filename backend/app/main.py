@@ -499,18 +499,20 @@ def tts_endpoint(body: TTSIn, u=Depends(me)):
 # ---------- WhatsApp bot ----------
 GREETINGS = {"hi", "hii", "hiii", "hello", "hey", "heyy", "hlo", "helo", "namaste", "namaskar", "menu",
              "start", "help", "नमस्ते", "हाय", "हेलो"}
-MENU = [("menu_today", "📋 Today's tenders"), ("menu_best", "🏆 Which to bid?"), ("menu_pdf", "📄 Check a PDF")]
+MENU = [("menu_today", "Today's tenders"), ("menu_best", "Bid recommendation"), ("menu_pdf", "Check a tender PDF")]
+RETRY = "Something went wrong on our side. Please try again in a few minutes."
 
 
 def send_menu(to):
-    return wa.send_buttons(to, "Namaste 🙏 I'm TenderSaathi. What do you want to do?\n\n"
-                               "📋 See today's matching tenders\n🏆 Get my bid / no-bid pick\n"
-                               "📄 Send a tender PDF and I'll tell you if you should bid", MENU)
+    return wa.send_buttons(to, "*TenderSaathi*\nYour assistant for government tenders.\n\n"
+                               "*Today's tenders:* matches for your profile\n"
+                               "*Bid recommendation:* which tenders to bid on\n"
+                               "*Check a tender PDF:* eligibility and a bid decision", MENU)
 
 
 def send_picker(to, items):
     if items:
-        wa.send_list(to, "Tap a tender for its risk report and bid / no-bid call.", "Pick a tender",
+        wa.send_list(to, "Select a tender to view its risk report and recommendation.", "View tenders",
                      [(f"t_{i['digest_rank']}", f"{i['digest_rank']}. {i['title']}",
                        f"{i.get('org') or '-'} · {wa._days(i)}") for i in items])
 
@@ -549,18 +551,17 @@ def run_best(to):
         d, _ = _digest(db.owner())
         items = sorted(d["items"], key=lambda i: -(i.get("score") or 0))[:3]
         if not items:
-            return wa.send_text(to, "No strong tender matches today, so nothing worth bidding on yet.")
-        lines = ["🏆 My picks for you today", ""]
+            return wa.send_text(to, "*Bid recommendation*\nNo strong matches today, so there is nothing to bid on yet.")
+        lines = ["*Bid recommendation*", "Top tenders for your profile today", ""]
         for i in items:
-            lines += [f"{i['digest_rank']}. {i['title'][:100]}",
-                      f"   {i.get('org') or '-'} · {wa._days(i)} · score {round(i.get('score') or 0)}",
-                      f"   {wa.bid_call(i.get('score'))}", ""]
-        lines.append("Tap a tender below for a full risk check before you bid.")
+            lines += [f"*{i['digest_rank']}. {i['title'][:100]}*", wa.meta(i),
+                      f"Recommendation: {wa.bid_call(i.get('score'))}", ""]
+        lines.append("Select a tender below for a full risk report before you bid.")
         wa.send_text(to, "\n".join(lines))
         send_picker(to, d["items"])
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         log.exception("best failed")
-        wa.send_text(to, f"Couldn't pick tenders: {str(e)[:200]}")
+        wa.send_text(to, RETRY)
 
 
 def run_digest(force_text=False, to=None):
@@ -573,9 +574,9 @@ def run_digest(force_text=False, to=None):
             send_picker(to, d["items"])
         else:
             wa.send_template(to, "daily_tenders", os.getenv("TEMPLATE_LANG", "en"), [len(d["items"])])
-    except Exception as e:  # noqa: BLE001 - always tell the owner instead of failing silently
+    except Exception:  # noqa: BLE001 - always tell the user instead of failing silently
         log.exception("digest failed")
-        wa.send_text(to, f"Digest failed: {str(e)[:200]}")
+        wa.send_text(to, RETRY)
 
 
 @app.post("/api/digest/run", status_code=202)
@@ -588,44 +589,48 @@ def digest_run(bg: BackgroundTasks, x_cron_secret: str = Header("")):
 
 
 def _drill(item):
-    lines = [f"🔎 {item['digest_rank']}. {item['title'][:120]}", f"Buyer: {item.get('org') or '-'}", ""]
+    lines = ["*Tender report*", f"*{item['digest_rank']}. {item['title'][:120]}*", wa.meta(item), ""]
     risk = None
     try:
         intel = serp.tender_intel(item["title"], item.get("org") or "")
         risk = intel["risk_level"]
-        lines.append(f"Risk: {intel['risk_level']} (score {intel['risk_score']})")
-        for f in intel["flags"][:3]:
-            lines.append(f"• {f['signal']}: {f['source']}")
+        lines.append(f"*Risk:* {intel['risk_level']}")
+        lines += [f"- {f['signal'].capitalize()}: {f['source']}" for f in intel["flags"][:3]]
         if intel["competitors"]:
-            lines.append("Likely competitors: " + ", ".join(c["name"] for c in intel["competitors"][:3]))
-    except serp.SerpError as e:
-        lines.append(f"Risk signals unavailable ({str(e)[:80]})")
+            lines.append("*Likely competitors:* " + ", ".join(c["name"] for c in intel["competitors"][:3]))
+    except serp.SerpError:
+        log.exception("risk lookup failed")
+        lines.append("*Risk:* not available right now")
     try:
         found = research.buyer_brief(item.get("org") or item["title"])
         if found:
-            lines += ["", "📚 Cited research (You.com):"]
-            lines += [f"• {f['title'][:90]}\n  {f['url']}" for f in found]
-    except research.ResearchError as e:
-        lines.append(f"Research unavailable ({str(e)[:80]})")
-    lines += ["", f"👉 {wa.bid_call(item.get('score'), risk)}",
-              "", "Best-effort from public sources. Verify on the official portal."]
+            lines += ["", "*Sources*"]
+            lines += [f"- {f['title'][:90]}\n  {f['url']}" for f in found]
+    except research.ResearchError:
+        log.exception("research failed")
+    lines += ["", f"*Recommendation:* {wa.bid_call(item.get('score'), risk)}",
+              "", "_Based on public sources. Verify details on the official portal._"]
     return "\n".join(lines)
 
 
 def _eligibility(data):
     if len(data) > 10 * 1024 * 1024:
-        return "PDF is over 10 MB. Please send a smaller file."
+        return "This PDF is larger than 10 MB. Please send a smaller file."
     try:
         text = analyzer.pdf_text(data)
     except Exception:  # noqa: BLE001
-        return "Couldn't read that PDF."
+        return "This PDF could not be read. Please check the file and send it again."
     if len(text.strip()) < 50:
-        return "No text found (scanned PDF? OCR not included)."
+        return "No readable text was found. Scanned PDFs are not supported yet; please send a text PDF."
     res = analyzer.match_profile(text, db.owner())
-    icon = {"red": "🔴", "amber": "🟠", "green": "🟢"}
-    flags = sorted(res["flags"], key=lambda f: ["red", "amber", "green"].index(f["level"]))
-    return "\n".join([f"📄 Eligibility: {res['verdict']} (scope match {res['scope_match_pct']}%)", ""] +
-                     [f"{icon[f['level']]} {f['msg']}" for f in flags[:8]] + ["", f"👉 {wa.pdf_call(res['verdict'])}"])
+    lines = ["*Eligibility check*", f"Result: {res['verdict']} · Scope match {res['scope_match_pct']}%"]
+    shown = 0
+    for level, head in (("red", "Gaps"), ("amber", "To review"), ("green", "Met")):
+        msgs = [f["msg"] for f in res["flags"] if f["level"] == level][:8 - shown]
+        if msgs:
+            lines += ["", f"*{head}*"] + [f"- {m}" for m in msgs]
+            shown += len(msgs)
+    return "\n".join(lines + ["", f"*Recommendation:* {wa.pdf_call(res['verdict'])}"])
 
 
 def handle_message(msg):
@@ -640,8 +645,8 @@ def handle_message(msg):
         if choice == "menu_best":
             return run_best(to)
         if choice == "menu_pdf":
-            return wa.send_text(to, "📄 Send or forward the tender PDF here (under 10 MB).\n"
-                                    "I'll check eligibility and tell you whether to bid.")
+            return wa.send_text(to, "Please send the tender document as a PDF (up to 10 MB).\n"
+                                    "I will check your eligibility and recommend whether to bid.")
         if choice.startswith("t_") and choice[2:].isdigit():
             return _send_drill(to, int(choice[2:]))
         return send_menu(to)
@@ -659,11 +664,12 @@ def handle_message(msg):
     if kind == "document":
         doc = msg["document"]
         if doc.get("mime_type") != "application/pdf":
-            return wa.send_text(to, "Please send the tender as a PDF.")
+            return wa.send_text(to, "Please send the tender document as a PDF.")
         try:
             data = wa.download_media(doc["id"])
-        except Exception as e:  # noqa: BLE001
-            return wa.send_text(to, f"Couldn't download the file ({str(e)[:80]}).")
+        except Exception:  # noqa: BLE001
+            log.exception("media download failed")
+            return wa.send_text(to, "The file could not be downloaded. Please send it again.")
         return wa.send_text(to, _eligibility(data))
     return send_menu(to)
 
@@ -672,8 +678,8 @@ def _send_drill(to, rank):
     d = evaluate._stored(_today())
     item = next((i for i in (d or {}).get("items", []) if i["digest_rank"] == rank), None)
     if not item:
-        return wa.send_text(to, "No tender list yet today. Tap 📋 Today's tenders first.")
-    wa.send_text(to, "🔎 Checking risk signals, give me a few seconds…")
+        return wa.send_text(to, "Today's list is not ready yet. Reply *today* to load it first.")
+    wa.send_text(to, "Preparing the report. This takes a few seconds.")
     return wa.send_text(to, _drill(item))
 
 

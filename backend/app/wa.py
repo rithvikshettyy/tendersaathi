@@ -48,18 +48,18 @@ def send_list(to, body, button, rows):
 def bid_call(score, risk_level=None):
     """Bid / no-bid from digest score (0-100) and optional public risk level."""
     if risk_level == "High":
-        return "❌ Don't bid: high risk signals around this buyer/tender."
+        return "Do not bid. Public sources show high risk signals."
     if (score or 0) >= 60:
-        return "✅ Bid: strong match for your profile."
+        return "Bid. Strong match with your profile."
     if (score or 0) >= 40:
-        return "🤔 Maybe: decent match. Send the tender PDF to check eligibility."
-    return "❌ Skip: weak match for your profile."
+        return "Consider. Moderate match; check eligibility with the tender PDF."
+    return "Skip. Weak match with your profile."
 
 
 def pdf_call(verdict):
-    return {"Well aligned": "✅ Bid: you meet the key conditions.",
-            "Partially aligned": "🤔 Bid only if you can fix the 🔴/🟠 points above.",
-            }.get(verdict, "❌ Don't bid: too many conditions you don't meet.")
+    return {"Well aligned": "Bid. You meet the key conditions.",
+            "Partially aligned": "Consider. Bid only if you can resolve the gaps listed above.",
+            }.get(verdict, "Do not bid. Several key conditions are not met.")
 
 
 def send_template(to, name, lang, params):
@@ -86,7 +86,7 @@ def verify_signature(raw_body: bytes, header: str) -> bool:
 
 def _days(it):
     d = (it.get("score_parts") or {}).get("days_left")
-    return "date ?" if d is None else f"{d}d left"
+    return "Deadline not listed" if d is None else f"{d} day{'' if d == 1 else 's'} left"
 
 
 def split(text, limit=MAX_LEN):
@@ -103,23 +103,28 @@ def split(text, limit=MAX_LEN):
     return parts
 
 
+def meta(it):
+    return f"{it.get('org') or 'Buyer not listed'} · {_days(it)} · Match {round(it.get('score') or 0)}/100"
+
+
 def format_digest(items, reasons, warn=""):
     if not items:
-        return ["आज कोई मज़बूत मैच नहीं मिला। / No strong tender matches today."]
+        return ["*Today's tenders*\nNo strong matches for your profile today."]
     why = {r["rank"]: r for r in reasons}
-    lines = [f"📋 TenderSaathi: {len(items)} tenders for you today", ""]
+    lines = ["*Today's tenders*", f"{len(items)} matches for your profile", ""]
     for it in items[:3]:
         r = why.get(it["digest_rank"], {})
-        lines += [f"⭐ {it['digest_rank']}. {it['title'][:110]}",
-                  f"   {it.get('org') or '-'} · {_days(it)} · score {round(it.get('score') or 0)}"]
-        if r:
-            lines += [f"   🇮🇳 {r['hi']}", f"   🇬🇧 {r['en']}"]
+        lines += [f"*{it['digest_rank']}. {it['title'][:110]}*", meta(it)]
+        if r.get("en"):
+            lines.append(f"_{r['en']}_")
         lines.append("")
-    for it in items[3:]:
-        lines.append(f"{it['digest_rank']}. {it['title'][:80]} · {it.get('org') or '-'} · {_days(it)}")
+    if items[3:]:
+        lines.append("*Also matching*")
+        lines += [f"{it['digest_rank']}. {it['title'][:80]} · {_days(it)}" for it in items[3:]]
+        lines.append("")
     if warn:
-        lines += ["", f"⚠️ {warn}"]
-    lines += ["", "Reply 1–10 for a risk report · forward a tender PDF for an eligibility check"]
+        lines += [f"_Note: {warn}_", ""]
+    lines.append(f"Reply with a number (1-{len(items)}) for a detailed report, or send a tender PDF for an eligibility check.")
     return split("\n".join(lines))
 
 
@@ -135,9 +140,10 @@ if __name__ == "__main__":
     items = [{"digest_rank": i, "title": f"Tender {i}", "org": "Org", "score": 50,
               "score_parts": {"days_left": 9}} for i in range(1, 11)]
     out = format_digest(items, [{"rank": 1, "hi": "हिंदी", "en": "english"}])
-    assert len(out) == 1 and "⭐ 1. Tender 1" in out[0] and "10. Tender 10" in out[0] and "हिंदी" in out[0]
+    assert len(out) == 1 and "*1. Tender 1*" in out[0] and "10. Tender 10" in out[0] and "_english_" in out[0]
     assert "No strong" in format_digest([], [])[0]
-    assert bid_call(80).startswith("✅") and bid_call(80, "High").startswith("❌")
-    assert bid_call(45).startswith("🤔") and bid_call(10).startswith("❌") and bid_call(None).startswith("❌")
-    assert pdf_call("Well aligned").startswith("✅") and pdf_call("Not aligned").startswith("❌")
+    assert bid_call(80).startswith("Bid") and bid_call(80, "High").startswith("Do not")
+    assert bid_call(45).startswith("Consider") and bid_call(10).startswith("Skip") and bid_call(None).startswith("Skip")
+    assert pdf_call("Well aligned").startswith("Bid") and pdf_call("Not aligned").startswith("Do not")
+    assert _days({"score_parts": {"days_left": 1}}) == "1 day left"
     print("wa self-check ok")
