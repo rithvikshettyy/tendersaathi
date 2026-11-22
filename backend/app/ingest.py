@@ -2,7 +2,8 @@
 import datetime, json, logging, os, re, secrets
 import httpx
 from . import db, serp, categories
-from .analyzer import extract_terms
+from .analyzer import extract_terms, pdf_text
+from .evaluate import _meaningful
 
 log = logging.getLogger("tendersaathi.ingest")
 SEED_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "seed")
@@ -79,28 +80,55 @@ def fetch_serp(company):
     return out
 
 
+GEM = "https://bidplus.gem.gov.in"
+GEM_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130 Safari/537.36"}
+
+
+def gem_keywords(company):
+    # Product words minus generic ones ("office", "supply"); one GeM search each.
+    return sorted(_meaningful(f"{company['products']} {company['services']}"))[:6]
+
+
 def fetch_gem(company):
-    # shortcut: endpoint + field names untested (GEM_LIVE=0 by default); verify by hand before enabling.
-    kw = " ".join(categories.tokens(company["products"])[:3])
-    with httpx.Client(timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as cl:
-        page = cl.get("https://bidplus.gem.gov.in/all-bids")
-        m = re.search(r'name="csrf_bd_gem_nk"\s+value="([^"]+)"', page.text)
-        payload = {"page": 1, "param": {"searchBid": kw, "searchType": "fullText"},
-                   "filter": {"bidStatusType": "ongoing_bids", "byType": "all", "highBidValue": "",
-                              "byEndDate": {"from": "", "to": ""}, "sort": "Bid-End-Date-Latest"}}
-        r = cl.post("https://bidplus.gem.gov.in/all-bids-data",
-                    data={"payload": json.dumps(payload), "csrf_bd_gem_nk": m.group(1) if m else ""})
-        docs = r.json().get("response", {}).get("response", {}).get("docs", [])
-    out = []
-    for d in docs:
-        first = lambda k: (d.get(k) or [""])[0] if isinstance(d.get(k), list) else (d.get(k) or "")
-        bid = first("b_bid_number")
-        out.append({"ext_id": bid, "title": first("b_category_name") or bid,
-                    "org": f"{first('ba_official_details_minName')} {first('ba_official_details_deptName')}".strip(),
-                    "deadline": first("final_end_date_sort")[:10], "quantity": str(first("b_total_quantity")),
-                    "link": f"https://bidplus.gem.gov.in/showbidDocument/{first('b_id')}",
-                    "snippet": "", "source": "bidplus.gem.gov.in", "kind": "government"})
+    """Open GeM bids for each product keyword. Public endpoint, no login or captcha."""
+    out, seen = [], set()
+    with httpx.Client(timeout=30, headers=GEM_HEADERS, follow_redirects=True) as cl:
+        page = cl.get(f"{GEM}/all-bids")
+        # The token lives in inline JS ('csrf_bd_gem_nk': '...'), not in a form field.
+        m = re.search(r"csrf_bd_gem_nk['\"]\s*[:,]\s*['\"]([0-9a-f]+)", page.text)
+        if not m:
+            raise RuntimeError("GeM CSRF token not found (page layout changed?)")
+        for kw in gem_keywords(company):
+            payload = {"page": 1, "param": {"searchBid": kw, "searchType": "fullText"},
+                       "filter": {"bidStatusType": "ongoing_bids", "byType": "all", "highBidValue": "",
+                                  "byEndDate": {"from": "", "to": ""}, "sort": "Bid-End-Date-Latest"}}
+            r = cl.post(f"{GEM}/all-bids-data", data={"payload": json.dumps(payload), "csrf_bd_gem_nk": m.group(1)},
+                        headers={"X-Requested-With": "XMLHttpRequest", "Referer": f"{GEM}/all-bids"})
+            r.raise_for_status()
+            for d in r.json().get("response", {}).get("response", {}).get("docs", []):
+                first = lambda k: (d.get(k) or [""])[0] if isinstance(d.get(k), list) else (d.get(k) or "")
+                bid = first("b_bid_number")
+                if not bid or bid in seen:
+                    continue
+                seen.add(bid)
+                out.append({"ext_id": bid, "title": first("b_category_name") or bid,
+                            "org": first("ba_official_details_deptName") or first("ba_official_details_minName"),
+                            "deadline": first("final_end_date_sort")[:10], "quantity": str(first("b_total_quantity")),
+                            "link": f"{GEM}/showbidDocument/{first('b_id')}",
+                            "snippet": f"{bid} · {first('ba_official_details_minName')}",
+                            "source": "bidplus.gem.gov.in", "kind": "government"})
     return out
+
+
+def fetch_pdf_text(link):
+    """Download a bid PDF and return its text ('' if not a readable PDF)."""
+    r = httpx.get(link, timeout=60, headers=GEM_HEADERS, follow_redirects=True)
+    if r.status_code != 200 or not r.content.startswith(b"%PDF-") or len(r.content) > 10 * 1024 * 1024:
+        return ""
+    try:
+        return pdf_text(r.content)
+    except Exception:  # noqa: BLE001 - corrupt PDF means "no text", not a failed search
+        return ""
 
 
 def run(company):

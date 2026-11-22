@@ -14,7 +14,8 @@ export interface Intel {
 }
 export interface Tender {
   id: number; title: string; link: string; snippet: string; source: string; kind: string;
-  org: string; category: string; deadline: string; found: string;
+  org: string; category: string; deadline: string; found: string; ext_id?: string | null;
+  score?: number | null; score_parts?: Record<string, unknown> | null;
   analysis: Analysis | null; intel: Intel | null;
   /** Sample (synthetic) tender shown when live data is not available. */
   demo?: boolean;

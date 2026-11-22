@@ -133,30 +133,73 @@ def _tender(c, tid, cid):
 
 
 def _tender_out(t):
-    for k in ("analysis", "intel", "checklist"):
+    for k in ("analysis", "intel", "checklist", "score_parts"):
         t[k] = json.loads(t[k]) if t.get(k) else None
     t.pop("doc_text", None)
     return t
 
 
+PDF_TOP = 5  # bid PDFs downloaded and checked per search; each is ~100 KB and 1-3 s
+
+
+def _rank(t, u, analysis=None):
+    """Title/deadline/size score, minus 10 per red eligibility flag from the bid PDF."""
+    total, parts = evaluate.score(t, u)
+    if total is not None and analysis:
+        reds = sum(f["level"] == "red" for f in analysis["flags"])
+        parts = {**parts, "red_flags": reds, "verdict": analysis["verdict"]}
+        total = max(0, total - 10 * reds)
+    return total, parts
+
+
 @app.post("/api/tenders/search")
 def search_tenders(u=Depends(me)):
-    kws = [w for w in categories.tokens(f"{u['products']} {u['services']}") if len(w) > 3][:6]
-    if not kws:
+    if not ingest.gem_keywords(u):
         raise HTTPException(400, "Add products/services to your profile first")
+    found, errors = [], []
     try:
-        found = serp.find_tenders(kws, u["categories"], u["state"])
-    except serp.SerpError as e:
-        raise HTTPException(502, str(e))
-    added = 0
+        found += ingest.fetch_gem(u)
+    except Exception as e:  # noqa: BLE001 - GeM down must not hide SerpAPI results
+        errors.append(f"GeM: {str(e)[:160]}")
+    if os.getenv("SERP_LIVE", "1") == "1":
+        try:
+            found += ingest.fetch_serp(u)
+        except serp.SerpError as e:
+            errors.append(f"SerpAPI: {str(e)[:160]}")
+    if not found and errors:
+        raise HTTPException(502, "; ".join(errors))
+    added, kept = 0, []
     with db.conn() as c:
         for t in found:
-            cat = categories.tender_category(t["title"] + " " + t["snippet"])
-            cur = c.execute("""INSERT OR IGNORE INTO tenders(company_id,title,link,snippet,source,kind,org,category)
-                               VALUES(?,?,?,?,?,?,?,?)""",
-                            (u["id"], t["title"], t["link"], t["snippet"], t["source"], t["kind"], t["org"], cat))
-            added += cur.rowcount
-    return {"found": len(found), "new": added}
+            t["category"] = categories.tender_category(f"{t['title']} {t.get('snippet', '')}")
+            total, parts = _rank(t, u)
+            if total is None:  # no product overlap or closing in < 3 days
+                continue
+            added += ingest._upsert(c, u["id"], t)
+            row = c.execute("SELECT id, analysis FROM tenders WHERE company_id=? AND link=?",
+                            (u["id"], t["link"])).fetchone()
+            c.execute("UPDATE tenders SET score=?, score_parts=? WHERE id=?", (total, json.dumps(parts), row["id"]))
+            kept.append((total, row["id"], t, bool(row["analysis"])))
+    kept.sort(key=lambda k: -k[0])
+    analyzed = 0
+    for _, tid, t, done in [k for k in kept if k[2]["source"] == "bidplus.gem.gov.in"][:PDF_TOP]:
+        if done:
+            continue
+        text = ingest.fetch_pdf_text(t["link"])
+        if len(text.strip()) < 50:
+            continue
+        res = analyzer.match_profile(text, u)
+        terms = res["terms"]
+        value = terms.get("estimated_value_rupees")
+        t = {**t, "value_cr": value / 1e7 if value else None}
+        total, parts = _rank(t, u, res)
+        with db.conn() as c:
+            c.execute("""UPDATE tenders SET doc_text=?, analysis=?, score=?, score_parts=?, value_cr=?,
+                         org=COALESCE(NULLIF(?, ''), org) WHERE id=?""",
+                      (text[:200000], json.dumps(res), total, json.dumps(parts), t["value_cr"],
+                       terms.get("organisation", ""), tid))
+        analyzed += 1
+    return {"found": len(found), "matched": len(kept), "new": added, "pdf_checked": analyzed, "errors": errors}
 
 
 @app.post("/api/tenders")
@@ -173,7 +216,8 @@ def add_tender(t: TenderIn, u=Depends(me)):
 @app.get("/api/tenders")
 def list_tenders(u=Depends(me)):
     with db.conn() as c:
-        rows = c.execute("SELECT * FROM tenders WHERE company_id=? ORDER BY id DESC", (u["id"],)).fetchall()
+        rows = c.execute("SELECT * FROM tenders WHERE company_id=? ORDER BY score IS NULL, score DESC, id DESC",
+                         (u["id"],)).fetchall()
     return [_tender_out(dict(r)) for r in rows]
 
 

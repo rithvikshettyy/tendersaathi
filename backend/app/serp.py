@@ -14,7 +14,7 @@ ORG_RE = re.compile(
 COMP_RE = re.compile(
     r"((?:[A-Z][\w&.\-]+\s){1,4}(?:Pvt\.?\s?Ltd\.?|Private Limited|Limited|Ltd\.?|Industries|"
     r"Enterprises|Engineers|Infra\w*|Projects|Associates|Traders|Solutions|Constructions?))")
-AMOUNT_RE = re.compile(r"(?:₹|Rs\.?|INR)\s?[\d,]+(?:\.\d+)?\s?(?:crore|cr|lakhs?|million)?", re.I)
+AMOUNT_RE = re.compile(r"(?:₹|\bRs\.?|\bINR)\s?\d[\d,]*(?:\.\d+)?\s?(?:crore|cr|lakhs?|million)?", re.I)
 RISK_WORDS = {"blacklist": 3, "debar": 3, "scam": 3, "corruption": 3, "arbitration": 2,
               "dispute": 2, "litigation": 2, "cancelled": 2, "canceled": 2, "retender": 2,
               "delay": 1, "penalty": 1, "complaint": 1, "payment pending": 2, "unpaid": 2}

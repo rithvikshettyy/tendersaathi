@@ -22,8 +22,11 @@ export default function Tenders() {
   async function search() {
     setBusy(true); setMsg("Searching government and private portals across India…");
     try {
-      const r = await api<{ found: number; new: number; demo?: boolean }>("/tenders/search", { method: "POST" });
-      setMsg(r.demo ? `Live search isn't available, so I added ${r.new} sample tenders.` : `Found ${r.found} results, ${r.new} new.`);
+      const r = await api<{ found: number; matched?: number; new: number; pdf_checked?: number; errors?: string[]; demo?: boolean }>(
+        "/tenders/search", { method: "POST" });
+      setMsg(r.demo ? `Live search isn't available, so I added ${r.new} sample tenders.`
+        : `Found ${r.found}, ${r.matched} match your products (${r.new} new). Checked ${r.pdf_checked} bid PDFs.`
+          + (r.errors?.length ? ` Some sources failed: ${r.errors.join("; ")}` : ""));
       await load();
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   }
@@ -44,7 +47,7 @@ export default function Tenders() {
       <div className="bar">
         <h2>Tenders</h2>
         <div className="row">
-          <button className="primary" onClick={search} disabled={busy}>Find tenders (SerpAPI)</button>
+          <button className="primary" onClick={search} disabled={busy}>Find tenders (GeM)</button>
           <button onClick={addManual}>+ Add manually</button>
         </div>
       </div>
@@ -64,6 +67,9 @@ export default function Tenders() {
       {list.map(t => (
         <div className="card tender" key={t.id}>
           <h3>{t.title}</h3>
+          {t.score != null && <span className="pill">Match {Math.round(t.score)}/100</span>}
+          {t.ext_id && <span className="pill">{t.ext_id}</span>}
+          {t.deadline && <span className="pill">Closes {t.deadline}</span>}
           <span className="pill">{t.kind}</span><span className="pill">{t.category}</span>{t.demo && <span className="pill sample">Sample</span>}
           {t.org && <span className="pill">{t.org}</span>}
           {t.analysis && <span className={`pill ${verdictCls(t.analysis.verdict)}`}>{t.analysis.verdict}</span>}
