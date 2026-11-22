@@ -1,6 +1,9 @@
+@font-face{font-family:"HN Web";src:url("/fonts/HelveticaNeue-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"HN Web";src:url("/fonts/HelveticaNeue-Medium.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"HN Web";src:url("/fonts/HelveticaNeue-Semibold.woff2") format("woff2");font-weight:600;font-style:normal;font-display:swap}
 :root{--bg:#000000;--fg:#F9F9F9;--card:#000000;--line:#333333;--acc:#E85002;--muted:#A7A7A7;--green:#4cc27f;--amber:#D9C3AB;--red:#ff5a4d;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:400 15px/1.5 "Helvetica Neue",var(--font-inter),Helvetica,Arial,sans-serif}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 15px/1.5 "HN Web","Helvetica Neue",var(--font-inter),Helvetica,Arial,sans-serif}
 h1,h2,h3,h4{margin:0 0 8px;font-weight:600}
 a{color:var(--acc)}
 .pad{padding:24px}

@@ -1,6 +1,6 @@
 /* Public (marketing + auth) theme: black, blue, a hint of white. Re-themes shared classes via variables. */
 .pub{
-  font-family:"Helvetica Neue",var(--font-inter),Helvetica,Arial,sans-serif;
+  font-family:"HN Web","Helvetica Neue",var(--font-inter),Helvetica,Arial,sans-serif;
   --bg:#000000;--fg:#F9F9F9;--card:#000000;--line:#333333;
   --acc:#E85002;--acc2:#F16001;--muted:#A7A7A7;--green:#4cc27f;--amber:#D9C3AB;--red:#ff5a4d;
   --grad:linear-gradient(100deg,#000000 0%,#C10801 45%,#F16001 75%,#D9C3AB 100%);
