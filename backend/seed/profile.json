@@ -1,0 +1,16 @@
+{
+  "name": "Sample Furniture Works",
+  "email": "owner@example.com",
+  "gstin": "",
+  "udyam": "",
+  "state": "Maharashtra",
+  "city": "Pune",
+  "size": "micro",
+  "turnover_cr": 2.0,
+  "years": 4,
+  "certifications": "ISO 9001",
+  "products": "steel furniture office chairs desks almirah school benches",
+  "services": "furniture installation repair",
+  "women_owned": false,
+  "startup": false
+}

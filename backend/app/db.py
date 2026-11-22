@@ -17,7 +17,12 @@ CREATE TABLE IF NOT EXISTS tenders(
   doc_text TEXT DEFAULT '', analysis TEXT DEFAULT '', intel TEXT DEFAULT '',
   checklist TEXT DEFAULT '{}', found TEXT DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(company_id, link));
+CREATE TABLE IF NOT EXISTS kv(key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS seen_msgs(id TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS digests(day TEXT PRIMARY KEY, tender_ids TEXT, reasons TEXT);
 """
+NEW_TENDER_COLS = ["ext_id TEXT", "quantity TEXT", "value_cr REAL", "score REAL",
+                   "score_parts TEXT", "sent_on TEXT", "digest_rank INTEGER"]
 
 
 def conn():
@@ -29,6 +34,29 @@ def conn():
 def init():
     with conn() as c:
         c.executescript(SCHEMA)
+        for col in NEW_TENDER_COLS:
+            try:
+                c.execute(f"ALTER TABLE tenders ADD COLUMN {col}")
+            except sqlite3.OperationalError:
+                pass  # column already exists
+
+
+def kv_get(key):
+    with conn() as c:
+        r = c.execute("SELECT value FROM kv WHERE key=?", (key,)).fetchone()
+    return r["value"] if r else None
+
+
+def kv_set(key, value):
+    with conn() as c:
+        c.execute("INSERT OR REPLACE INTO kv VALUES(?,?)", (key, str(value)))
+
+
+def owner():
+    """Single-company mode: the first company is the WhatsApp owner."""
+    with conn() as c:
+        r = c.execute("SELECT * FROM companies ORDER BY id LIMIT 1").fetchone()
+    return company_public(r) if r else None
 
 
 def hash_pw(pw, salt=None):

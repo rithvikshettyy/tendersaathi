@@ -19,7 +19,9 @@ ITEMS = [
 def _days_left(deadline):
     if not deadline:
         return None
-    for fmt in ("%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y", "%d-%m-%y", "%d/%m/%y", "%Y-%m-%d"):
+    deadline = deadline.strip()
+    for fmt in ("%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y", "%d-%m-%y", "%d/%m/%y", "%Y-%m-%d",
+                "%d-%b-%Y", "%d %b %Y", "%d-%m-%Y %I:%M %p"):
         try:
             return (datetime.datetime.strptime(deadline, fmt).date() - datetime.date.today()).days
         except ValueError:

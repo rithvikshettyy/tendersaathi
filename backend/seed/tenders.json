@@ -1,0 +1,16 @@
+[
+  {"ext_id": "SAMPLE-001", "title": "Supply of steel almirah and office chairs for district offices", "org": "Collectorate Pune", "days_from_now": 12, "value_cr": 0.6, "quantity": "120 almirah, 300 chairs"},
+  {"ext_id": "SAMPLE-002", "title": "Procurement of school benches and desks for Zilla Parishad schools", "org": "Zilla Parishad Nashik", "days_from_now": 9, "value_cr": 1.5, "quantity": "2,000 bench-desk sets"},
+  {"ext_id": "SAMPLE-003", "title": "Supply and installation of modular office furniture", "org": "Municipal Corporation Nagpur", "days_from_now": 15, "value_cr": 3.2, "quantity": "1 lot"},
+  {"ext_id": "SAMPLE-004", "title": "Repair and refurbishment of hostel furniture", "org": "Savitribai Phule Pune University", "days_from_now": 5, "value_cr": 0.25, "quantity": "1 lot"},
+  {"ext_id": "SAMPLE-005", "title": "Supply of revolving chairs and steel desks", "org": "Central Railway Mumbai Division", "days_from_now": 2, "value_cr": 0.4, "quantity": "150 chairs, 80 desks"},
+  {"ext_id": "SAMPLE-006", "title": "Supply of hospital beds and bedside lockers", "org": "Department of Public Health Maharashtra", "days_from_now": 20, "value_cr": 8.0, "quantity": "500 beds"},
+  {"ext_id": "SAMPLE-007", "title": "Annual rate contract for office furniture and steel almirah", "org": "Maharashtra State Electricity Distribution Company Limited", "days_from_now": 18, "value_cr": 12.0, "quantity": "rate contract"},
+  {"ext_id": "SAMPLE-008", "title": "Supply of LED street lights", "org": "Pune Municipal Corporation", "days_from_now": 14, "value_cr": 2.0, "quantity": "3,000 fittings"},
+  {"ext_id": "SAMPLE-009", "title": "Supply of library racks and reading tables", "org": "Directorate of Libraries Maharashtra", "days_from_now": 11, "value_cr": 0.8, "quantity": "200 racks, 60 tables"},
+  {"ext_id": "SAMPLE-010", "title": "Housekeeping and cleaning services for office complex", "org": "Income Tax Department Pune", "days_from_now": 10, "value_cr": 1.0, "quantity": "12 months"},
+  {"ext_id": "SAMPLE-011", "title": "Supply of steel furniture for Anganwadi centres", "org": "Women and Child Development Department Maharashtra", "days_from_now": 7, "value_cr": 1.8, "quantity": "900 centres"},
+  {"ext_id": "SAMPLE-012", "title": "Supply of computer tables and chairs for training lab", "org": "Industrial Training Institute Aurangabad", "days_from_now": 8, "value_cr": 0.3, "quantity": "40 sets"},
+  {"ext_id": "SAMPLE-013", "title": "Supply of desktop computers and printers", "org": "District Court Pune", "days_from_now": 13, "value_cr": 0.9, "quantity": "50 desktops"},
+  {"ext_id": "SAMPLE-014", "title": "Supply of school desks with chairs for Kendriya Vidyalaya", "org": "Kendriya Vidyalaya Sangathan Mumbai Region", "days_from_now": 16, "value_cr": 0.7, "quantity": "600 sets"}
+]

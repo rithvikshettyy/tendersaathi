@@ -1,13 +1,18 @@
-import json, secrets, os
+import datetime, json, logging, re, secrets, os
 from typing import Optional
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, BackgroundTasks, Request
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 load_dotenv()
 from . import db, categories, serp, analyzer, schemes, readiness, rag, supabase_auth  # noqa: E402
+from . import ingest, evaluate, research, wa  # noqa: E402
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+log = logging.getLogger("tendersaathi.bot")
 db.init()
+ingest.load_seed(ingest.ensure_owner())  # Render disk is wiped on restart: reseed every boot
 app = FastAPI(title="TenderSaathi")
 
 
@@ -86,6 +91,8 @@ def _save_profile(c, cid, p: Profile):
 
 @app.post("/api/register")
 def register(p: Register):
+    if os.getenv("PUBLIC_REGISTER", "1") == "0":  # deployed: stop strangers burning SerpApi credits
+        raise HTTPException(403, "Registration is closed")
     h, salt = db.hash_pw(p.password)
     with db.conn() as c:
         try:
@@ -265,6 +272,150 @@ def chat(body: ChatIn, u=Depends(me)):
     except RuntimeError as e:
         raise HTTPException(502, str(e))
     return {"answer": answer, "sources": sorted({s for s, _ in top})}
+
+
+# ---------- WhatsApp bot ----------
+HELP = ("TenderSaathi 🤝\n• TODAY / आज: today's tenders\n• 1–10: risk report for that tender\n"
+        "• Forward a tender PDF: eligibility check")
+
+
+def _today():
+    return datetime.date.today().isoformat()
+
+
+def _digits(s):
+    return re.sub(r"\D", "", s or "")
+
+
+def _window_open():
+    last = db.kv_get("last_inbound_at")
+    if not last:
+        return False
+    return datetime.datetime.now() - datetime.datetime.fromisoformat(last) < datetime.timedelta(hours=23)
+
+
+def run_digest(force_text=False):
+    to, co = os.getenv("OWNER_PHONE", ""), db.owner()
+    try:
+        warn = ""
+        if not evaluate._stored(_today()):  # skip ingest (and SerpApi spend) if today's digest exists
+            summary = ingest.run(co)
+            if summary["quota"]:
+                warn = "SerpApi quota reached: today's list uses saved tenders only."
+            elif summary["errors"]:
+                warn = "Some live sources failed today; list may be shorter."
+        d = evaluate.pick(co)
+        log.info("digest day=%s items=%d warn=%s", _today(), len(d["items"]), bool(warn))
+        if force_text or _window_open():
+            for m in wa.format_digest(d["items"], d["reasons"], warn):
+                wa.send_text(to, m)
+        else:
+            wa.send_template(to, "daily_tenders", os.getenv("TEMPLATE_LANG", "en"), [len(d["items"])])
+    except Exception as e:  # noqa: BLE001 - always tell the owner instead of failing silently
+        log.exception("digest failed")
+        wa.send_text(to, f"Digest failed: {str(e)[:200]}")
+
+
+@app.post("/api/digest/run", status_code=202)
+def digest_run(bg: BackgroundTasks, x_cron_secret: str = Header("")):
+    want = os.getenv("CRON_SECRET", "")
+    if not want or not secrets.compare_digest(x_cron_secret, want):
+        raise HTTPException(403, "Bad cron secret")
+    bg.add_task(run_digest)
+    return {"queued": True}
+
+
+def _drill(item):
+    lines = [f"🔎 {item['digest_rank']}. {item['title'][:120]}", f"Buyer: {item.get('org') or '-'}", ""]
+    try:
+        intel = serp.tender_intel(item["title"], item.get("org") or "")
+        lines.append(f"Risk: {intel['risk_level']} (score {intel['risk_score']})")
+        for f in intel["flags"][:3]:
+            lines.append(f"• {f['signal']}: {f['source']}")
+        if intel["competitors"]:
+            lines.append("Likely competitors: " + ", ".join(c["name"] for c in intel["competitors"][:3]))
+    except serp.SerpError as e:
+        lines.append(f"Risk signals unavailable ({str(e)[:80]})")
+    try:
+        found = research.buyer_brief(item.get("org") or item["title"])
+        if found:
+            lines += ["", "📚 Cited research (You.com):"]
+            lines += [f"• {f['title'][:90]}\n  {f['url']}" for f in found]
+    except research.ResearchError as e:
+        lines.append(f"Research unavailable ({str(e)[:80]})")
+    lines += ["", "Best-effort from public sources. Verify on the official portal."]
+    return "\n".join(lines)
+
+
+def _eligibility(data):
+    if len(data) > 10 * 1024 * 1024:
+        return "PDF is over 10 MB. Please send a smaller file."
+    try:
+        text = analyzer.pdf_text(data)
+    except Exception:  # noqa: BLE001
+        return "Couldn't read that PDF."
+    if len(text.strip()) < 50:
+        return "No text found (scanned PDF? OCR not included)."
+    res = analyzer.match_profile(text, db.owner())
+    icon = {"red": "🔴", "amber": "🟠", "green": "🟢"}
+    flags = sorted(res["flags"], key=lambda f: ["red", "amber", "green"].index(f["level"]))
+    return "\n".join([f"📄 Eligibility: {res['verdict']} (scope match {res['scope_match_pct']}%)", ""] +
+                     [f"{icon[f['level']]} {f['msg']}" for f in flags[:8]])
+
+
+def handle_message(msg):
+    to = os.getenv("OWNER_PHONE", "")
+    kind = msg.get("type")
+    log.info("wa_msg id=%s type=%s", msg.get("id"), kind)
+    if kind == "text":
+        body = msg["text"]["body"].strip().lower()
+        if body in ("today", "aaj", "आज"):
+            return run_digest(force_text=True)
+        if body.isdigit() and 1 <= int(body) <= evaluate.DIGEST_SIZE:
+            d = evaluate._stored(_today())
+            item = next((i for i in (d or {}).get("items", []) if i["digest_rank"] == int(body)), None)
+            if not item:
+                return wa.send_text(to, "No digest yet today. Send TODAY.")
+            return wa.send_text(to, _drill(item))
+        return wa.send_text(to, HELP)
+    if kind == "document":
+        doc = msg["document"]
+        if doc.get("mime_type") != "application/pdf":
+            return wa.send_text(to, "Please send the tender as a PDF.")
+        try:
+            data = wa.download_media(doc["id"])
+        except Exception as e:  # noqa: BLE001
+            return wa.send_text(to, f"Couldn't download the file ({str(e)[:80]}).")
+        return wa.send_text(to, _eligibility(data))
+    return wa.send_text(to, HELP)
+
+
+@app.get("/webhook")
+def webhook_verify(request: Request):
+    q = request.query_params
+    if q.get("hub.mode") == "subscribe" and q.get("hub.verify_token") == os.getenv("WA_VERIFY_TOKEN"):
+        return PlainTextResponse(q.get("hub.challenge", ""))
+    raise HTTPException(403, "Bad verify token")
+
+
+@app.post("/webhook")
+async def webhook(request: Request, bg: BackgroundTasks):
+    raw = await request.body()
+    if not wa.verify_signature(raw, request.headers.get("x-hub-signature-256", "")):
+        raise HTTPException(403, "Bad signature")
+    owner = _digits(os.getenv("OWNER_PHONE"))
+    body = json.loads(raw or b"{}")
+    for entry in body.get("entry", []):
+        for ch in entry.get("changes", []):
+            for msg in ch.get("value", {}).get("messages", []):
+                if _digits(msg.get("from")) != owner:
+                    continue
+                with db.conn() as c:  # Meta retries slow webhooks: process each message id once
+                    if not c.execute("INSERT OR IGNORE INTO seen_msgs VALUES(?)", (msg["id"],)).rowcount:
+                        continue
+                db.kv_set("last_inbound_at", datetime.datetime.now().isoformat())
+                bg.add_task(handle_message, msg)
+    return {"ok": True}
 
 
 @app.get("/")
