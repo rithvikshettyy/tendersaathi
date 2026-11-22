@@ -13,7 +13,7 @@ backend/   FastAPI   -> a host with a persistent disk or Postgres (not Vercel, s
 
 | Name | Value |
 | --- | --- |
-| `BACKEND_URL` | Public URL of the deployed FastAPI backend, no trailing slash |
+| `BACKEND_URL` | Optional. Public URL of the FastAPI backend. Production builds default to `https://tendersaathi.onrender.com`; set this only to override it. |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<project-ref>.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the `sb_publishable_...` key |
 

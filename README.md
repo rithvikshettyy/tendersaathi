@@ -68,7 +68,7 @@ cp .env.example .env.local         # then fill in the Supabase values below
 npm run dev                        # http://localhost:3000
 ```
 
-Open http://localhost:3000. Next.js proxies `/api/*` to `http://localhost:8000` by default; set `BACKEND_URL` to point somewhere else.
+Open http://localhost:3000. In `npm run dev`, Next.js proxies `/api/*` to `http://localhost:8000`. Production builds proxy to the hosted backend (`https://tendersaathi.onrender.com`). Set `BACKEND_URL` to point anywhere else.
 
 ### Environment variables
 
@@ -87,7 +87,7 @@ Open http://localhost:3000. Next.js proxies `/api/*` to `http://localhost:8000` 
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (safe in the browser) |
-| `BACKEND_URL` | Backend base URL for the `/api` proxy. Defaults to `http://localhost:8000`. Required on Vercel. |
+| `BACKEND_URL` | Backend base URL for the `/api` proxy. Optional: `next dev` defaults to `http://localhost:8000`, production builds default to `https://tendersaathi.onrender.com`. |
 
 Without `SERPAPI_KEY` or `SARVAM_API_KEY`, search and chat return a clear "key not set" error; everything else works. Never commit `.env` files (they are gitignored).
 
