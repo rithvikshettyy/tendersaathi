@@ -40,3 +40,30 @@ button.primary{background:#E8DFD0;color:#1A1919;font-weight:600;border-color:#E8
 .auth{max-width:640px;margin:40px auto;padding:0 16px}
 table td{padding:3px 12px 3px 0;vertical-align:top}
 .bar2{height:8px;border-radius:4px;background:var(--line);overflow:hidden}.bar2>i{display:block;height:100%;background:var(--rose)}
+.offline{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;padding:10px 14px;margin-bottom:16px;color:var(--muted);font-size:14px}
+.onb{max-width:720px;margin:0 auto;padding:24px 16px 56px}
+.onb-top{display:flex;justify-content:space-between;align-items:center;padding:8px 0 20px}
+.onb-top b{font-size:20px;font-weight:600}.onb-top b span{color:var(--rose)}
+.onb-card{padding:28px}.onb-card h2{margin-top:18px}
+.onb-actions{display:flex;justify-content:space-between;gap:12px;margin-top:22px}
+.fld{display:flex;flex-direction:column;gap:6px}.fld>span{font-size:13px;color:var(--muted)}
+.fld em.err{font-style:normal;font-size:13px}
+
+/* ===== chat panel + floating widget ===== */
+.chatpanel{display:flex;flex-direction:column;min-height:0}
+.chat-lang{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px}
+.chat-lang select{width:auto;padding:5px 8px}
+.chat-empty{padding:4px 0}
+.chips-q{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.chips-q button{font-size:13px;text-align:left;border-radius:999px;padding:6px 12px}
+.bubble.err{color:var(--red)}
+.chatpanel.compact{flex:1;padding:12px 14px 14px;min-height:0}
+.chatpanel.compact .chatlog{flex:1;min-height:0;max-height:none}
+.fab{position:fixed;right:24px;bottom:24px;z-index:40;display:flex;align-items:center;gap:8px;padding:12px 18px;border-radius:999px;background:var(--fg);color:var(--bg);border:0;font-weight:600;box-shadow:0 10px 30px -10px rgba(0,0,0,.7)}
+.fab:hover{filter:brightness(1.06)}
+.chatwin{position:fixed;right:24px;bottom:88px;z-index:40;width:380px;height:min(560px,calc(100vh - 120px));display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 30px 80px -20px rgba(0,0,0,.8);overflow:hidden}
+.chatwin[hidden]{display:none}
+.chatwin header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.chatwin header button{border:0;background:none;padding:4px 8px;color:var(--muted)}
+@media(max-width:560px){.chatwin{right:0;left:0;bottom:0;width:auto;height:75vh;border-radius:14px 14px 0 0}.fab{right:16px;bottom:16px}}
+.bubble{overflow-wrap:anywhere}.chatlog{overflow-x:hidden}

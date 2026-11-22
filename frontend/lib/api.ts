@@ -2,6 +2,14 @@ import { getSupabase, supabaseConfigured } from "./supabase";
 
 const PROVIDER_KEY = "ts_provider";
 
+export class ApiError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
+
+/** Backend down/unreachable (as opposed to a bad login). */
+export const isUnreachable = (e: unknown) =>
+  !(e instanceof ApiError) || [404, 500, 502, 503, 504].includes(e.status);
+
 export const tokenStore = {
   get: () => (typeof window === "undefined" ? null : localStorage.getItem("ts_token")),
   /** Email/password session token from our own backend. */
@@ -42,7 +50,8 @@ export async function api<T>(path: string, { method, body, form }: Opts = {}): P
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const unreachable = res.status === 404 || res.status === 502 || res.status === 504;
-    throw new Error(
+    throw new ApiError(
+      res.status,
       data.detail ||
         (unreachable ? "Cannot reach the TenderSaathi server. The backend may not be deployed yet." : "") ||
         res.statusText ||

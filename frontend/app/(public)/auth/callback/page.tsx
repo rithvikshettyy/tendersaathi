@@ -2,8 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
-import { api, tokenStore } from "@/lib/api";
-import type { Company } from "@/lib/types";
+import { tokenStore } from "@/lib/api";
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -24,10 +23,7 @@ export default function AuthCallback() {
       if (error || !data.session) { setErr(error?.message || "Sign-in failed."); return; }
       tokenStore.setSupabase(data.session.access_token);
 
-      try {
-        const me = await api<Company>("/me"); // backend creates the company on first Google login
-        router.replace(me.products || me.services ? "/dashboard" : "/profile?welcome=1");
-      } catch (e) { setErr((e as Error).message || "Something went wrong after sign-in."); }
+      router.replace("/dashboard"); // the dashboard gate sends new users to /onboarding
     })();
   }, [router]);
 

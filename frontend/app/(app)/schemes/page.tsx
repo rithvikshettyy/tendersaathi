@@ -5,7 +5,7 @@ import type { Scheme } from "@/lib/types";
 
 export default function Schemes() {
   const [s, setS] = useState<Scheme[]>([]);
-  useEffect(() => { api<Scheme[]>("/schemes").then(setS); }, []);
+  useEffect(() => { api<Scheme[]>("/schemes").then(setS).catch(() => setS([])); }, []);
   return (
     <>
       <h2>Government schemes & benefits</h2>

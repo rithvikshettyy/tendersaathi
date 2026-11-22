@@ -8,7 +8,7 @@ import type { Tender } from "@/lib/types";
 export default function Dashboard() {
   const { me } = useAuth();
   const [tenders, setTenders] = useState<Tender[] | null>(null);
-  useEffect(() => { api<Tender[]>("/tenders").then(setTenders); }, []);
+  useEffect(() => { api<Tender[]>("/tenders").then(setTenders).catch(() => setTenders([])); }, []);
 
   const list = tenders ?? [];
   const count = (f: (t: Tender) => boolean) => list.filter(f).length;

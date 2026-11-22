@@ -2,18 +2,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AuthGate, useAuth } from "@/lib/auth";
+import ChatWidget from "@/components/ChatWidget";
 
 const LINKS = [
   ["/dashboard", "Dashboard"],
   ["/tenders", "Tenders"],
   ["/schemes", "Schemes"],
-  ["/chat", "Chat"],
   ["/profile", "Profile"],
 ] as const;
 
 function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { me, logout } = useAuth();
+  const { me, logout, offline } = useAuth();
   return (
     <div className="shell">
       <aside className="side">
@@ -26,11 +26,15 @@ function Shell({ children }: { children: React.ReactNode }) {
           <a href="#" onClick={e => { e.preventDefault(); logout(); }}>Log out</a>
         </div>
       </aside>
-      <main className="content">{children}</main>
+      <main className="content">
+        {offline && <div className="offline">You're signed in, but the TenderSaathi server can't be reached right now, so tenders and profile data can't load yet.</div>}
+        {children}
+      </main>
+      <ChatWidget />
     </div>
   );
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return <AuthGate><Shell>{children}</Shell></AuthGate>;
+  return <AuthGate requireProfile><Shell>{children}</Shell></AuthGate>;
 }
