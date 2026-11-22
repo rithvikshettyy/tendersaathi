@@ -29,10 +29,10 @@ export default function HeroGrass() {
         <GrassField
           density={density}
           style={{ minWidth: 0, minHeight: 0 }}
-          background="#000000"
-          horizon="#C10801"
-          bladeBase="#000000"
-          bladeTip="#F16001"
+          background="#1A1919"
+          horizon="#6E1E3B"
+          bladeBase="#1A1919"
+          bladeTip="#E8DFD0"
         />
       )}
     </div>
