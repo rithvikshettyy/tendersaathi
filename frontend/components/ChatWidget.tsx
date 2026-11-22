@@ -11,6 +11,11 @@ export default function ChatWidget() {
 
   useEffect(() => { if (open) panel.current?.focus(); }, [open]);
   useEffect(() => {
+    const openChat = () => setOpen(true);
+    window.addEventListener("ts:open-chat", openChat);
+    return () => window.removeEventListener("ts:open-chat", openChat);
+  }, []);
+  useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", onKey);

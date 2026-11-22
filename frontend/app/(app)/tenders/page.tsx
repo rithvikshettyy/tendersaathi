@@ -12,6 +12,8 @@ export default function Tenders() {
   const [cat, setCat] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState("");
+  useEffect(() => { setQ(new URLSearchParams(window.location.search).get("q") ?? ""); }, []);
 
   const load = useCallback(() => api<Tender[]>("/tenders").then(setTenders).catch(() => setTenders([])), []);
   useEffect(() => { load(); }, [load]);
@@ -32,7 +34,9 @@ export default function Tenders() {
   }
 
   const cats = [...new Set(tenders.map(t => t.category))];
-  const list = tenders.filter(t => (!kind || t.kind === kind) && (!cat || t.category === cat));
+  const needle = q.trim().toLowerCase();
+  const list = tenders.filter(t => (!kind || t.kind === kind) && (!cat || t.category === cat) &&
+    (!needle || `${t.title} ${t.snippet} ${t.org} ${t.category}`.toLowerCase().includes(needle)));
 
   return (
     <>
@@ -45,6 +49,7 @@ export default function Tenders() {
       </div>
       {msg && <p className="muted">{msg}</p>}
       <div className="filters">
+        <input type="search" placeholder="Filter tenders…" value={q} onChange={e => setQ(e.target.value)} style={{ width: 220 }} />
         <select value={kind} onChange={e => setKind(e.target.value)}>
           <option value="">All sources</option><option value="government">Government</option>
           <option value="private/aggregator">Private / aggregator</option><option value="manual">Manual</option>
