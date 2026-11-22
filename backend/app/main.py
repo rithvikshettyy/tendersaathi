@@ -2,12 +2,12 @@ import datetime, json, logging, re, secrets, os
 from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, BackgroundTasks, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel
 
 load_dotenv()
 from . import db, categories, serp, analyzer, schemes, readiness, rag, supabase_auth  # noqa: E402
-from . import ingest, evaluate, research, wa  # noqa: E402
+from . import ingest, evaluate, research, wa, tts  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("tendersaathi.bot")
@@ -272,6 +272,23 @@ def chat(body: ChatIn, u=Depends(me)):
     except RuntimeError as e:
         raise HTTPException(502, str(e))
     return {"answer": answer, "sources": sorted({s for s, _ in top})}
+
+
+class TTSIn(BaseModel):
+    text: str
+    lang: str = "en"
+
+
+@app.post("/api/tts")
+def tts_endpoint(body: TTSIn, u=Depends(me)):
+    """Read a chat answer aloud (MP3)."""
+    if len(body.text) > 20000:
+        raise HTTPException(413, "Text too long")
+    try:
+        audio = tts.synthesize(body.text, body.lang)
+    except tts.TTSError as e:
+        raise HTTPException(e.status, str(e))
+    return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
 # ---------- WhatsApp bot ----------
