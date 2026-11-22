@@ -7,6 +7,7 @@ import { useTenders } from "@/lib/tenders-context";
 import { buildAlerts } from "@/lib/tenders";
 import { IconBell, IconLogout, IconProfile, IconSearch } from "./icons";
 import ThemeToggle from "./ThemeToggle";
+import { LanguageSwitch } from "@/lib/i18n";
 import { isEnabled, setEnabled } from "@/lib/demo";
 
 const initials = (name: string) =>
@@ -50,6 +51,7 @@ export default function Topbar({ title, subtitle }: { title: string; subtitle: s
         <IconBell />
         {alerts.length > 0 && <span className="tb-badge">{alerts.length > 9 ? "9+" : alerts.length}</span>}
       </Link>
+      <LanguageSwitch />
       <ThemeToggle />
       <div className="tb-user" ref={box}>
         <button type="button" onClick={() => setMenu(m => !m)} aria-expanded={menu} aria-haspopup="menu">

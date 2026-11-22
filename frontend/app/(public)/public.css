@@ -23,7 +23,14 @@
 .pnav .links{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pnav .links a.lnk{color:var(--muted);text-decoration:none;padding:8px 12px;border-radius:8px;font-size:14px}
 .pnav .links a.lnk:hover,.pnav .links a.lnk.on{color:var(--fg)}
-.pnav .links button{padding:8px 18px;font-size:14px}
+.pnav .links button{height:38px;padding:0 18px;font-size:14px;display:inline-flex;align-items:center}
+/* theme toggle: same height as the pill buttons, round, icon centred (overrides the padding above) */
+.pnav .links button.theme-toggle{width:38px;padding:0;justify-content:center;border-radius:50%;margin:0 4px;flex:none}
+.pnav .links a{display:inline-flex}
+.pnav .links .lang-btn{padding:0 14px;gap:8px}
+.pnav .links .lang-menu button{display:block;height:auto;width:100%;padding:8px 10px;border:0;border-radius:8px;background:none;color:var(--fg)}
+.pnav .links .lang-menu button:hover{background:var(--hover)}
+.pnav .links .lang-menu button.on{background:var(--acc);color:var(--on-acc)}
 
 /* layout helpers */
 .wrap{max-width:1080px;margin:0 auto;padding:0 6vw}
@@ -37,7 +44,8 @@
 .cta-row{display:flex;gap:12px;flex-wrap:wrap}.center .cta-row{justify-content:center}
 
 /* hero */
-.phero{position:relative;padding:190px 0 90px;overflow:hidden}
+.phero{position:relative;padding:130px 0 90px;overflow:hidden}
+@media(max-width:760px){.phero{padding-top:110px}}
 .hero-bg{position:absolute;inset:0;z-index:0;background:var(--bg)}
 .phero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:220px;z-index:0;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none}
 .phero .wrap{pointer-events:none}.phero .wrap a,.phero .wrap button{pointer-events:auto}
@@ -163,3 +171,10 @@
 .or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin:16px 0}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .pub ::placeholder{color:var(--muted);opacity:1}
+
+/* ===== 404 ===== */
+.nf{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:130px 6vw 80px}
+.nf-code{font-size:clamp(96px,18vw,180px);font-weight:600;letter-spacing:-.06em;line-height:1;margin:0 0 8px}
+.nf .lead{margin-bottom:28px}
+.nf-links{margin-top:26px;font-size:14px}
+.nf-links a{color:var(--fg)}

@@ -1,11 +1,7 @@
 import os, re, collections
-from urllib.parse import urlparse
 import httpx
+from . import db, sources
 
-GOV_SITES = ["gem.gov.in", "eprocure.gov.in", "etenders.gov.in", "tenderdetail.com",
-             "tender247.com", "nprocure.com", "mahatenders.gov.in", "tntenders.gov.in"]
-PRIVATE_SITES = ["tendersontime.com", "bidassist.com", "tenderwatch.in", "indiamart.com",
-                 "tradeindia.com"]
 AGGREGATORS = ("tenderdetail", "tender247", "bidassist", "tendersontime", "tenderwatch",
                "indiamart", "tradeindia", "google", "linkedin", "facebook", "youtube")
 ORG_RE = re.compile(
@@ -24,23 +20,40 @@ class SerpError(Exception):
     pass
 
 
-def _search(q, num=10):
+SEARCH_TTL = 6 * 3600
+
+
+def available():
+    return bool(os.getenv("SERPAPI_KEY"))
+
+
+def _search(q, recent="m"):
+    """Google results via SerpAPI. `recent`: d/w/m/y limits to the past day/week/month/year.
+    Google ignores `num` since Sept 2025, so each call returns ~10 results. Cached for 6h."""
     key = os.getenv("SERPAPI_KEY")
     if not key:
-        raise SerpError("SERPAPI_KEY not set in .env")
-    r = httpx.get("https://serpapi.com/search.json", timeout=40, params={
-        "engine": "google", "q": q, "gl": "in", "hl": "en", "google_domain": "google.co.in",
-        "location": "India", "num": num, "api_key": key})
+        raise SerpError("SERPAPI_KEY not set in backend/.env")
+    params = {"engine": "google", "q": q, "gl": "in", "hl": "en", "google_domain": "google.co.in",
+              "location": "India"}
+    if recent:
+        params["tbs"] = f"qdr:{recent}"
+    ck = "serp:" + repr(sorted(params.items()))
+    hit = db.cache_get(ck, SEARCH_TTL)
+    if hit is not None:
+        return hit
+    try:
+        r = httpx.get("https://serpapi.com/search.json", timeout=40, params={**params, "api_key": key})
+    except httpx.HTTPError as e:
+        raise SerpError(f"SerpAPI unreachable: {e}")
     if r.status_code != 200:
         raise SerpError(f"SerpAPI {r.status_code}: {r.text[:200]}")
-    return r.json().get("organic_results", [])
+    res = r.json().get("organic_results", [])
+    db.cache_set(ck, res)
+    return res
 
 
 def _kind(url):
-    host = urlparse(url).netloc.lower()
-    if host.endswith(".gov.in") or host.endswith(".nic.in") or "gem.gov" in host:
-        return "government"
-    return "private/aggregator"
+    return "government" if sources.is_official(url) else "private/aggregator"
 
 
 def _org(text):
@@ -48,49 +61,82 @@ def _org(text):
     return m.group(1).strip() if m else ""
 
 
-def find_tenders(keywords, categories, state=""):
-    kw = " ".join(keywords[:4])
-    queries = []
-    gov = " OR ".join(f"site:{s}" for s in GOV_SITES[:5])
-    prv = " OR ".join(f"site:{s}" for s in PRIVATE_SITES[:4])
-    queries.append(f"({gov}) {kw} tender")
-    queries.append(f"({prv}) {kw} tender OR RFQ OR \"expression of interest\"")
-    queries.append(f"{kw} tender India open bid submission last date")
-    if state:
-        queries.append(f"{kw} tender {state} government e-procurement")
-    if categories:
-        queries.append(f"{categories[0]} tender India private company vendor RFQ supplier")
-    seen, out = set(), []
+def profile_terms(company, limit=4):
+    """Short product/service phrases from the profile, e.g. ['desktop computers', 'ups', 'cctv']."""
+    raw = f"{company.get('products','')},{company.get('services','')}"
+    phrases = []
+    for p in re.split(r"[,;\n/|]+|\band\b", raw):
+        p = re.sub(r"[^\w\s\-&]", " ", p).strip().lower()
+        p = " ".join(p.split()[:3])
+        if len(p) > 2 and p not in phrases:
+            phrases.append(p)
+    return phrases[:limit]
+
+
+def or_terms(phrases):
+    return "(" + " OR ".join(f'"{p}"' if " " in p else p for p in phrases) + ")"
+
+
+def find_tenders(company):
+    """Official-site tender pages for this company's products/services, via Google (SerpAPI)."""
+    phrases = profile_terms(company)
+    if not phrases:
+        return []
+    kw = or_terms(phrases)
+    state = company.get("state", "")
+    central = " OR ".join(f"site:{s}" for s in ("gem.gov.in", "eprocure.gov.in", "etenders.gov.in"))
+    queries = [
+        f"({central}) {kw} tender OR bid",
+        f'{kw} tender ("bid end date" OR "bid submission" OR "last date") filetype:pdf site:gov.in',
+        f"{kw} (tender OR NIT OR RFP) site:gov.in OR site:nic.in",
+    ]
+    sp = sources.state_portal(state)
+    if sp:
+        queries.append(f"site:{sp} {kw} tender")
+    elif state:
+        queries.append(f"{kw} tender {state} site:gov.in")
+    seen, out, errors = set(), [], []
     for q in queries:
         try:
             results = _search(q)
-        except SerpError:
-            if not out:
-                raise
+        except SerpError as e:
+            errors.append(str(e))
             continue
         for r in results:
             link = r.get("link")
-            if not link or link in seen:
+            if not link or link in seen or not sources.is_official(link):
+                continue
+            if not sources.looks_like_tender(link, r.get("title", ""), r.get("snippet", "")):
                 continue
             seen.add(link)
             text = f"{r.get('title','')} {r.get('snippet','')}"
             out.append({"title": r.get("title", ""), "link": link, "snippet": r.get("snippet", ""),
-                        "source": urlparse(link).netloc, "kind": _kind(link), "org": _org(text)})
+                        "source": sources.portal_name(link), "kind": "government", "org": _org(text),
+                        "found_via": "SerpAPI"})
+    if not out and errors and len(errors) == len(queries):
+        raise SerpError(errors[0])
     return out
 
 
-def tender_intel(title, org):
+def intel_queries(title, org):
     subject = org or title
-    qs = [f'"{subject}" tender awarded bidders L1 contract',
-          f'"{subject}" blacklisted OR arbitration OR dispute OR delay OR cancelled tender payment']
-    hits = []
+    return subject, [f'"{subject}" tender awarded bidders L1 contract',
+                     f'"{subject}" blacklisted OR arbitration OR dispute OR delay OR cancelled tender payment']
+
+
+def tender_intel(title, org, extra_hits=None):
+    """Buyer risk + competitors from public search results. `extra_hits` lets other search
+    APIs (You.com) add results in the same {title, link, snippet} shape."""
+    subject, qs = intel_queries(title, org)
+    hits = list(extra_hits or [])
     for q in qs:
         try:
-            hits += _search(q, 10)
+            hits += _search(q, recent="")
         except SerpError:
             pass
+    hits = list({h.get("link"): h for h in hits if h.get("link")}.values())
     if not hits:
-        raise SerpError("No search results (check SERPAPI_KEY / quota)")
+        raise SerpError("No search results (check SERPAPI_KEY / YDC_API_KEY and quota)")
     risk_score, flags, comp, offers = 0, [], collections.Counter(), []
     for h in hits:
         text = f"{h.get('title','')}. {h.get('snippet','')}"

@@ -27,20 +27,20 @@ def _to_cr(val, unit):
 
 # GeM bid PDFs print an English label ("/EMD Amount") with its value on the next line.
 GEM_BID_RE = re.compile(r"GEM/\d{4}/B/\d+")
-GEM_FIELDS = {
-    "deadline": r"/Bid End Date/Time\s*\n\s*(\d{2}-\d{2}-\d{4})",
-    "ministry": r"/Ministry/State Name\s*\n\s*([^\n]+)",
-    "department": r"/Department Name\s*\n\s*([^\n]+)",
-    "organisation": r"/Organisation Name\s*\n\s*([^\n/][^\n]*)",
-    "item_category": r"/Item Category\s*\n\s*([^\n]+)",
-    "quantity": r"/Total Quantity\s*\n\s*(\d[\d,]*)\s*\n",
-    "emd_rupees": r"/EMD Amount\s*\n\s*(\d[\d,]*)",
-    "estimated_value_rupees": r"/Estimated Bid Value\s*\n\s*(\d[\d,]*)",
-    "min_experience_years": r"Years of Past Experience Required for\s*\n[^\n]*\n\s*(\d{1,2})\s*Year",
-    "mse_relaxation": r"MSE Relaxation for[\s\S]{0,60}?Turnover\s*\n\s*(Yes|No)",
-    "startup_relaxation": r"Startup Relaxation for[\s\S]{0,60}?Turnover\s*\n\s*(Yes|No)",
+GEM_FIELDS = {  # value on the same line or the next; leading "/" only in bilingual PDFs
+    "deadline": r"Bid End Date/Time\s*(\d{2}-\d{2}-\d{4})",
+    "ministry": r"Ministry/State Name[ \t]*\n?[ \t]*([^\n]+)",
+    "department": r"Department Name[ \t]*\n?[ \t]*([^\n]+)",
+    "organisation": r"Organisation Name[ \t]*\n?[ \t]*([^\n/][^\n]*)",
+    "item_category": r"Item Category[ \t]*\n?[ \t]*([^\n]+)",
+    "quantity": r"Total Quantity\s*(\d[\d,]*)",
+    "emd_rupees": r"EMD Amount\s*(\d[\d,]*)",
+    "estimated_value_rupees": r"Estimated Bid Value\s*(\d[\d,]*)",
+    "min_experience_years": r"Years of Past Experience Required for\s+same/similar\s+\w+\s*(\d{1,2})\s*Year",
+    "mse_relaxation": r"MSE Relaxation for[\s\S]{0,60}?Turnover\s*(Yes|No)",
+    "startup_relaxation": r"Startup Relaxation for[\s\S]{0,60}?Turnover\s*(Yes|No)",
 }
-GEM_TURNOVER_RE = re.compile(r"Turnover of the bidder[^\n]*\n[^\n]*Years\)\s*\n\s*(\d[\d.,]*)\s*(Lakh|Crore|Cr)", re.I)
+GEM_TURNOVER_RE = re.compile(r"Turnover of the\s+bidder\s*\(For \d Years?\)\s*(\d[\d.,]*)\s*(Lakh|Crore|Cr)", re.I)
 
 
 def gem_terms(t):
@@ -80,13 +80,19 @@ def extract_terms(t):
 def _generic_terms(t):
     low = t
     out = {}
-    m = re.search(r"(?:EMD|earnest money(?: deposit)?)[^\d₹Rs]{0,60}(?:₹|Rs\.?|INR)?\s*(\d[\d,]*(?:\.\d+)?)", low, re.I)
+    num = r"(\d[\d,]*(?:\.\d+)?)"
+    m = re.search(r"(?:EMD Amount|EMD|earnest money(?: deposit)?)[^\d₹]{0,60}?(?:₹|Rs\.?|INR)?\s*" + num, low, re.I)
     if m:
         out["emd_rupees"] = _num(m.group(1))
-    m = re.search(r"(?:average annual turnover|annual turnover|turnover)[^\d₹Rs]{0,80}(?:₹|Rs\.?|INR)?\s*(\d[\d,]*(?:\.\d+)?)\s*(crore|cr|lakhs?|lacs?|million)?", low, re.I)
+    # GeM: "Minimum Average Annual Turnover of the bidder (For 3 Years)  32 Lakh (s)"
+    unit = r"\s*(crore|cr|lakhs?|lacs?|million)?"
+    m = re.search(r"Average Annual Turnover of the\s+bidder\s*\(For \d Years?\)\s*" + num + unit, low, re.I) or \
+        re.search(r"(?:average annual turnover|annual turnover|turnover)(?:\s*\((?:for|last) \d years?\))?"
+                  r"[^\d₹]{0,80}?(?:₹|Rs\.?|INR)?\s*" + num + unit, low, re.I)
     if m:
         out["min_turnover_cr"] = round(_to_cr(_num(m.group(1)), m.group(2)), 3)
-    m = re.search(r"(\d{1,2})\s*(?:\+)?\s*years?[^.]{0,60}(?:experience|similar work|supplied)", low, re.I) or \
+    m = re.search(r"Years of Past Experience Required for\s+same/similar\s+\w+\s*(\d{1,2})\s*Year", low, re.I) or \
+        re.search(r"(\d{1,2})\s*(?:\+)?\s*years?[^.]{0,60}(?:experience|similar work|supplied)", low, re.I) or \
         re.search(r"experience[^.]{0,60}?(\d{1,2})\s*years?", low, re.I)
     if m:
         out["min_experience_years"] = int(m.group(1))

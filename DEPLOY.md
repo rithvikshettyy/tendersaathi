@@ -21,7 +21,7 @@ backend/   FastAPI   -> a host with a persistent disk or Postgres (not Vercel, s
 
 ## Why the backend is not on Vercel
 
-The backend stores data in SQLite on local disk. Vercel functions have an ephemeral, read-only filesystem, so users and tenders would vanish between requests. Host it on a service with a persistent disk (Render, Railway, Fly) or move the data to Postgres (e.g. Supabase) first. Backend env vars: `SERPAPI_KEY`, `SARVAM_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`.
+The backend stores data in SQLite on local disk. Vercel functions have an ephemeral, read-only filesystem, so users and tenders would vanish between requests. Host it on a service with a persistent disk (Render, Railway, Fly) or move the data to Postgres (e.g. Supabase) first. Backend env vars: `SERPAPI_KEY`, `YDC_API_KEY`, `SARVAM_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`.
 
 ## Supabase (Google sign-in)
 

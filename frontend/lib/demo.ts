@@ -99,7 +99,9 @@ function load(): State {
 }
 function save(s: State) { try { localStorage.setItem(skey(), JSON.stringify(s)); } catch { /* storage blocked */ } }
 
-const OFF = "ts_demo_off";
+// v2: the old banner's "Turn off" button was removed, so opt-outs saved under "ts_demo_off" no longer apply.
+// Users switch sample data off/on from the "Sample data" checkbox in the user menu.
+const OFF = "ts_sample_off_v2";
 export const isEnabled = () => { try { return localStorage.getItem(OFF) !== "1"; } catch { return true; } };
 export function setEnabled(on: boolean) {
   try { if (on) localStorage.removeItem(OFF); else localStorage.setItem(OFF, "1"); } catch { /* storage blocked */ }
