@@ -23,7 +23,10 @@
 .pnav .links{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pnav .links a.lnk{color:var(--muted);text-decoration:none;padding:8px 12px;border-radius:8px;font-size:14px}
 .pnav .links a.lnk:hover,.pnav .links a.lnk.on{color:var(--fg)}
-.pnav .links button{padding:8px 18px;font-size:14px}
+.pnav .links button{height:38px;padding:0 18px;font-size:14px;display:inline-flex;align-items:center}
+/* theme toggle: same height as the pill buttons, round, icon centred (overrides the padding above) */
+.pnav .links button.theme-toggle{width:38px;padding:0;justify-content:center;border-radius:50%;margin:0 4px;flex:none}
+.pnav .links a{display:inline-flex}
 
 /* layout helpers */
 .wrap{max-width:1080px;margin:0 auto;padding:0 6vw}

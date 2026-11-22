@@ -2,12 +2,13 @@ import datetime, json, logging, re, secrets, os
 from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, BackgroundTasks, Request
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
 load_dotenv()
 from . import db, categories, serp, analyzer, schemes, readiness, rag, supabase_auth  # noqa: E402
 from . import ingest, evaluate, research, wa, tts  # noqa: E402
+from . import demo, pipeline, sources, youcom  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("tendersaathi.bot")
@@ -132,14 +133,14 @@ def _tender(c, tid, cid):
     return dict(r)
 
 
+JSON_COLS = ("analysis", "intel", "checklist", "facts", "win", "score_parts")
+
+
 def _tender_out(t):
-    for k in ("analysis", "intel", "checklist", "score_parts"):
+    for k in JSON_COLS:
         t[k] = json.loads(t[k]) if t.get(k) else None
     t.pop("doc_text", None)
     return t
-
-
-PDF_TOP = 5  # bid PDFs downloaded and checked per search; each is ~100 KB and 1-3 s
 
 
 def _rank(t, u, analysis=None):
@@ -152,72 +153,150 @@ def _rank(t, u, analysis=None):
     return total, parts
 
 
+def _save_assessment(c, tid, a):
+    f = a["facts"]
+    c.execute("""UPDATE tenders SET title=?, org=?, deadline=?, doc_text=?, analysis=?, facts=?, win=?,
+                 win_score=?, status=?, reader=?, read_status=?,
+                 value_cr=COALESCE(?, value_cr), ext_id=COALESCE(ext_id, ?) WHERE id=?""",
+              (a["title"], a["org"], a["deadline"], a["doc_text"], json.dumps(a["analysis"]),
+               json.dumps({**f, "read_note": a["note"]}), json.dumps(a["win"]), a["win_score"],
+               a["status"], a["reader"], a["read_status"], f.get("value_cr"), f.get("bid_no"), tid))
+
+
 @app.post("/api/tenders/search")
 def search_tenders(u=Depends(me)):
-    if not ingest.gem_keywords(u):
+    """Step 1: find open tenders from GeM's live bid list, SerpAPI (Google) and You.com Search.
+    Reading and scoring happen in /tenders/read, in small batches, so no single request runs long."""
+    if not serp.profile_terms(u) and not ingest.gem_keywords(u):
         raise HTTPException(400, "Add products/services to your profile first")
-    found, errors = [], []
     try:
-        found += ingest.fetch_gem(u)
-    except Exception as e:  # noqa: BLE001 - GeM down must not hide SerpAPI results
-        errors.append(f"GeM: {str(e)[:160]}")
-    if os.getenv("SERP_LIVE", "1") == "1":
-        try:
-            found += ingest.fetch_serp(u)
-        except serp.SerpError as e:
-            errors.append(f"SerpAPI: {str(e)[:160]}")
-    if not found and errors:
-        raise HTTPException(502, "; ".join(errors))
-    added, kept = 0, []
+        gem = ingest.fetch_gem(u)
+    except Exception as e:  # noqa: BLE001 - GeM down must not hide the search APIs
+        gem, warnings = [], [f"GeM: {str(e)[:160]}"]
+    else:
+        warnings = []
+    # GeM keyword search is loose: keep bids whose title overlaps the profile and close in 3+ days.
+    gem_kept = []
+    for t in gem:
+        t["category"] = categories.tender_category(f"{t['title']} {t.get('snippet', '')}")
+        total, parts = _rank(t, u)
+        if total is not None:
+            gem_kept.append({**t, "found_via": "GeM", "score": total, "score_parts": parts})
+    try:
+        web, stats = pipeline.discover(u)
+        warnings += stats["warnings"]
+    except pipeline.PipelineError as e:
+        web, stats = [], {"serpapi": 0, "youcom": 0}
+        warnings.append(str(e))
+    seen = {t["link"] for t in gem_kept}
+    found = gem_kept + [t for t in web if t["link"] not in seen]
+    if not found and warnings:
+        raise HTTPException(502, "; ".join(warnings))
+    added = 0
     with db.conn() as c:
         for t in found:
-            t["category"] = categories.tender_category(f"{t['title']} {t.get('snippet', '')}")
-            total, parts = _rank(t, u)
-            if total is None:  # no product overlap or closing in < 3 days
-                continue
+            t.setdefault("category", categories.tender_category(f"{t['title']} {t.get('snippet', '')}"))
             added += ingest._upsert(c, u["id"], t)
-            row = c.execute("SELECT id, analysis FROM tenders WHERE company_id=? AND link=?",
-                            (u["id"], t["link"])).fetchone()
-            c.execute("UPDATE tenders SET score=?, score_parts=? WHERE id=?", (total, json.dumps(parts), row["id"]))
-            kept.append((total, row["id"], t, bool(row["analysis"])))
-    kept.sort(key=lambda k: -k[0])
-    analyzed = 0
-    for _, tid, t, done in [k for k in kept if k[2]["source"] == "bidplus.gem.gov.in"][:PDF_TOP]:
-        if done:
-            continue
-        text = ingest.fetch_pdf_text(t["link"])
-        if len(text.strip()) < 50:
-            continue
-        res = analyzer.match_profile(text, u)
-        terms = res["terms"]
-        value = terms.get("estimated_value_rupees")
-        t = {**t, "value_cr": value / 1e7 if value else None}
-        total, parts = _rank(t, u, res)
-        with db.conn() as c:
-            c.execute("""UPDATE tenders SET doc_text=?, analysis=?, score=?, score_parts=?, value_cr=?,
-                         org=COALESCE(NULLIF(?, ''), org) WHERE id=?""",
-                      (text[:200000], json.dumps(res), total, json.dumps(parts), t["value_cr"],
-                       terms.get("organisation", ""), tid))
-        analyzed += 1
-    return {"found": len(found), "matched": len(kept), "new": added, "pdf_checked": analyzed, "errors": errors}
+            c.execute("""UPDATE tenders SET found_via=CASE WHEN found_via='' OR found_via IS NULL THEN ? ELSE found_via END,
+                         score=COALESCE(?, score), score_parts=COALESCE(?, score_parts)
+                         WHERE company_id=? AND link=?""",
+                      (t["found_via"], t.get("score"),
+                       json.dumps(t["score_parts"]) if t.get("score_parts") else None, u["id"], t["link"]))
+        pending = c.execute("SELECT COUNT(*) FROM tenders WHERE company_id=? AND read_status='pending'",
+                            (u["id"],)).fetchone()[0]
+    return {"found": len(found), "new": added, "pending": pending, "gem": len(gem_kept),
+            "serpapi": stats["serpapi"], "youcom": stats["youcom"], "warnings": warnings}
+
+
+@app.post("/api/tenders/read")
+def read_pending(limit: int = 4, u=Depends(me)):
+    """Step 2-4: read the next few unread tenders with You.com, extract terms, score win chance."""
+    limit = max(1, min(limit, 8))
+    with db.conn() as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM tenders WHERE company_id=? AND read_status='pending' ORDER BY id LIMIT ?",
+            (u["id"], limit))]
+    for r in rows:
+        r["intel"] = json.loads(r["intel"]) if r.get("intel") else None
+    results = pipeline.process(rows, u) if rows else []
+    with db.conn() as c:
+        for tid, a in results:
+            _save_assessment(c, tid, a)
+        remaining = c.execute("SELECT COUNT(*) FROM tenders WHERE company_id=? AND read_status='pending'",
+                              (u["id"],)).fetchone()[0]
+    return {"processed": len(results), "remaining": remaining,
+            "read_by": {k: sum(a["reader"] == k for _, a in results) for k in ("you.com", "direct", "snippet")}}
+
+
+@app.post("/api/tenders/{tid}/read")
+def read_one(tid: int, u=Depends(me)):
+    with db.conn() as c:
+        t = _tender(c, tid, u["id"])
+    if not t["link"].startswith("http"):
+        raise HTTPException(400, "This tender has no link to read. Upload its PDF instead.")
+    t["intel"] = json.loads(t["intel"]) if t.get("intel") else None
+    [(_, a)] = pipeline.process([t], u, workers=1)
+    with db.conn() as c:
+        _save_assessment(c, tid, a)
+        return _tender_out(dict(_tender(c, tid, u["id"])))
+
+
+@app.post("/api/tenders/demo")
+def load_demo(u=Depends(me)):
+    """Load the sample GeM-format bid PDFs as tenders for this company and score them like live ones.
+    Calling it again re-scores them (e.g. after a profile change)."""
+    files = demo.names()
+    if not files:
+        raise HTTPException(404, "No sample PDFs. Run: python seed/make_gem_samples.py")
+    added = 0
+    with db.conn() as c:
+        for name in files:
+            link = demo.PREFIX + name
+            text = demo.text(name)
+            cur = c.execute("""INSERT OR IGNORE INTO tenders(company_id,title,link,snippet,source,kind,org,category,
+                               found_via,read_status) VALUES(?,?,?,?,?,?,?,?,?,'pending')""",
+                            (u["id"], name, link, "", "GeM (sample)", "government", "",
+                             categories.tender_category(text[:4000]), "Sample seed"))
+            added += cur.rowcount
+            r = c.execute("SELECT * FROM tenders WHERE company_id=? AND link=?", (u["id"], link)).fetchone()
+            t = dict(r)
+            t["intel"] = json.loads(t["intel"]) if t.get("intel") else None
+            t["title"] = "" if t["title"] == name else t["title"]
+            a = pipeline.assess(t, u, text, "sample")
+            _save_assessment(c, t["id"], a)
+    return {"loaded": len(files), "new": added}
+
+
+@app.get("/api/demo/pdf/{name}")
+def demo_pdf(name: str):
+    """Serve a sample bid PDF (public: synthetic demo data, no user data)."""
+    p = demo.path(name)
+    if not p:
+        raise HTTPException(404, "Not found")
+    return FileResponse(p, media_type="application/pdf", filename=name)
 
 
 @app.post("/api/tenders")
 def add_tender(t: TenderIn, u=Depends(me)):
     cat = categories.tender_category(t.title)
+    has_link = t.link.startswith("http")
     with db.conn() as c:
-        cur = c.execute("""INSERT INTO tenders(company_id,title,link,snippet,source,kind,org,category,deadline)
-                           VALUES(?,?,?,?,?,?,?,?,?)""",
-                        (u["id"], t.title, t.link or f"manual:{secrets.token_hex(6)}", "", "manual",
-                         "manual", t.org, cat, t.deadline))
+        cur = c.execute("""INSERT INTO tenders(company_id,title,link,snippet,source,kind,org,category,deadline,
+                           found_via,read_status) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                        (u["id"], t.title, t.link if has_link else f"manual:{secrets.token_hex(6)}", "",
+                         sources.portal_name(t.link) if has_link else "manual",
+                         ("government" if sources.is_official(t.link) else "private/aggregator") if has_link else "manual",
+                         t.org, cat, t.deadline, "manual", "pending" if has_link else "manual"))
         return {"id": cur.lastrowid}
 
 
 @app.get("/api/tenders")
 def list_tenders(u=Depends(me)):
+    """Best first: open tenders by win chance, then unverified, then unread, closed last."""
     with db.conn() as c:
-        rows = c.execute("SELECT * FROM tenders WHERE company_id=? ORDER BY score IS NULL, score DESC, id DESC",
-                         (u["id"],)).fetchall()
+        rows = c.execute("""SELECT * FROM tenders WHERE company_id=? ORDER BY
+                            CASE status WHEN 'active' THEN 0 WHEN 'unverified' THEN 1 WHEN 'closed' THEN 3 ELSE 2 END,
+                            win_score DESC, id DESC""", (u["id"],)).fetchall()
     return [_tender_out(dict(r)) for r in rows]
 
 
@@ -230,25 +309,39 @@ async def analyze(tid: int, file: UploadFile = File(...), u=Depends(me)):
         raise HTTPException(400, f"Cannot read PDF: {e}")
     if len(text.strip()) < 50:
         raise HTTPException(400, "No text found (scanned PDF? OCR not included)")
-    result = analyzer.match_profile(text, u)
     with db.conn() as c:
-        _tender(c, tid, u["id"])
-        dl = result["terms"].get("deadline", "")
-        c.execute("UPDATE tenders SET doc_text=?, analysis=?, deadline=CASE WHEN deadline='' OR deadline IS NULL THEN ? ELSE deadline END WHERE id=?",
-                  (text[:200000], json.dumps(result), dl, tid))
-    return result
+        t = _tender(c, tid, u["id"])
+        t["intel"] = json.loads(t["intel"]) if t.get("intel") else None
+        a = pipeline.assess(t, u, text, "upload")
+        _save_assessment(c, tid, a)
+    return a["analysis"]
 
 
 @app.post("/api/tenders/{tid}/intel")
 def intel(tid: int, u=Depends(me)):
+    """Buyer risk + competitors from SerpAPI (Google) and You.com Search results."""
     with db.conn() as c:
         t = _tender(c, tid, u["id"])
+    extra = []
+    if youcom.available():
+        _, qs = serp.intel_queries(t["title"], t["org"])
+        for q in qs:
+            try:
+                extra += youcom.search(q, count=10, freshness="")
+            except youcom.YouError:
+                pass
     try:
-        res = serp.tender_intel(t["title"], t["org"])
+        res = serp.tender_intel(t["title"], t["org"], extra)
     except serp.SerpError as e:
         raise HTTPException(502, str(e))
+    res["sources_used"] = [n for n, ok in (("SerpAPI", serp.available()), ("You.com", bool(extra))) if ok]
     with db.conn() as c:
         c.execute("UPDATE tenders SET intel=? WHERE id=?", (json.dumps(res), tid))
+        if t.get("analysis"):  # re-score with buyer risk included
+            f = json.loads(t["facts"]) if t.get("facts") else {}
+            w = pipeline.win(u, json.loads(t["analysis"]), f, t.get("reader") or "you.com", t["kind"], res)
+            c.execute("UPDATE tenders SET win=?, win_score=?, status=? WHERE id=?",
+                      (json.dumps(w), w["score"], w["status"], tid))
     return res
 
 
@@ -477,6 +570,12 @@ async def webhook(request: Request, bg: BackgroundTasks):
                 db.kv_set("last_inbound_at", datetime.datetime.now().isoformat())
                 bg.add_task(handle_message, msg)
     return {"ok": True}
+
+
+@app.get("/api/status")
+def status():
+    """Which search/read APIs are configured (no secrets returned)."""
+    return {"serpapi": serp.available(), "youcom": youcom.available()}
 
 
 @app.get("/")

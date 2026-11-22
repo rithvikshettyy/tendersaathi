@@ -210,3 +210,24 @@ table td{padding:3px 12px 3px 0;vertical-align:top}
 .tb-switch{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:14px;cursor:pointer}
 .tb-switch:hover{background:var(--hover)}
 .tb-switch input{width:auto}
+
+/* ===== ranked tenders ===== */
+.small{font-size:13px}
+.apis{margin:0 0 10px}
+.progress{margin:0 0 14px;display:flex;flex-direction:column;gap:6px}
+.tender-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.tender-head h3{margin-bottom:6px}
+.win{flex:none;display:flex;flex-direction:column;align-items:center;min-width:92px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);text-align:center;line-height:1.15}
+.win small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.win b{font-size:18px}
+.win span{font-size:13px;color:var(--muted)}
+.win.green{border-color:var(--green)}.win.green b{color:var(--green)}
+.win.amber{border-color:var(--amber)}.win.amber b{color:var(--amber)}
+.win.red{border-color:var(--red)}.win.red b{color:var(--red)}
+.facts{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:14px;margin:8px 0}
+.reasons{margin:4px 0 12px;padding-left:18px;font-size:14px}
+.reasons li{margin:2px 0}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 16px;margin:10px 0}
+.kv div{display:flex;flex-direction:column}.kv span{font-size:12px;color:var(--muted)}
+@media(max-width:560px){.tender-head{flex-direction:column-reverse}.win{flex-direction:row;gap:8px;min-width:0}}
+.t-stats{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:760px){.t-stats{grid-template-columns:1fr}}

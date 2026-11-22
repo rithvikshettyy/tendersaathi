@@ -68,11 +68,8 @@ def load_seed(company):
 
 
 def fetch_serp(company):
-    kws = [w for w in categories.tokens(f"{company['products']} {company['services']}") if len(w) > 3][:6]
-    if not kws:
-        return []
     out = []
-    for h in serp.find_tenders(kws, company["categories"], company["state"]):
+    for h in serp.find_tenders(company):  # official sites only, past month, cached
         if not is_single_tender(h["title"], h["snippet"], h["link"]):
             continue
         terms = extract_terms(f"{h['title']} {h['snippet']}")

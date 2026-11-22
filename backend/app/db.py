@@ -1,4 +1,4 @@
-import sqlite3, os, hashlib, secrets, json
+import sqlite3, os, hashlib, secrets, json, time
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "tendersaathi.db")
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -20,9 +20,21 @@ CREATE TABLE IF NOT EXISTS tenders(
 CREATE TABLE IF NOT EXISTS kv(key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS seen_msgs(id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS digests(day TEXT PRIMARY KEY, tender_ids TEXT, reasons TEXT);
+CREATE TABLE IF NOT EXISTS api_cache(key TEXT PRIMARY KEY, value TEXT, ts REAL);
 """
 NEW_TENDER_COLS = ["ext_id TEXT", "quantity TEXT", "value_cr REAL", "score REAL",
                    "score_parts TEXT", "sent_on TEXT", "digest_rank INTEGER"]
+
+# Columns added after the first release. ALTER TABLE ... ADD COLUMN fails if it already exists.
+MIGRATIONS = [
+    "ALTER TABLE tenders ADD COLUMN facts TEXT DEFAULT ''",
+    "ALTER TABLE tenders ADD COLUMN win TEXT DEFAULT ''",
+    "ALTER TABLE tenders ADD COLUMN status TEXT DEFAULT ''",
+    "ALTER TABLE tenders ADD COLUMN win_score INTEGER DEFAULT -1",
+    "ALTER TABLE tenders ADD COLUMN read_status TEXT DEFAULT 'pending'",
+    "ALTER TABLE tenders ADD COLUMN reader TEXT DEFAULT ''",
+    "ALTER TABLE tenders ADD COLUMN found_via TEXT DEFAULT ''",
+]
 
 
 def conn():
@@ -34,9 +46,9 @@ def conn():
 def init():
     with conn() as c:
         c.executescript(SCHEMA)
-        for col in NEW_TENDER_COLS:
+        for m in [f"ALTER TABLE tenders ADD COLUMN {col}" for col in NEW_TENDER_COLS] + MIGRATIONS:
             try:
-                c.execute(f"ALTER TABLE tenders ADD COLUMN {col}")
+                c.execute(m)
             except sqlite3.OperationalError:
                 pass  # column already exists
 
@@ -57,6 +69,19 @@ def owner():
     with conn() as c:
         r = c.execute("SELECT * FROM companies ORDER BY id LIMIT 1").fetchone()
     return company_public(r) if r else None
+
+
+def cache_get(key, max_age_s):
+    with conn() as c:
+        r = c.execute("SELECT value, ts FROM api_cache WHERE key=?", (key,)).fetchone()
+    if r and time.time() - r["ts"] < max_age_s:
+        return json.loads(r["value"])
+    return None
+
+
+def cache_set(key, value):
+    with conn() as c:
+        c.execute("INSERT OR REPLACE INTO api_cache VALUES(?,?,?)", (key, json.dumps(value), time.time()))
 
 
 def hash_pw(pw, salt=None):

@@ -14,8 +14,10 @@ Register your business once. TenderSaathi places you in tender categories, finds
 | --- | --- |
 | **Onboarding** | After sign-in, a two-step form collects company name, GSTIN (format-checked), state, size, goods and services. The dashboard stays locked until it is complete. |
 | **Auto-categorisation** | Products and services are mapped to up to 3 of 14 tender categories (electrical, civil, IT, textiles, medical, machinery and more). |
-| **Tender discovery** | One click searches government portals (GeM, eProcure, eTenders, state portals) and private or aggregator sites via SerpAPI. Results are tagged government or private. |
-| **PDF eligibility check** | Upload a tender PDF. EMD, turnover, experience, certifications, MSE/startup relaxations and OEM clauses are extracted and compared with your profile, giving red / amber / green flags and a verdict. |
+| **Tender discovery** | One click pulls open bids from **GeM's live bid list** (public endpoint, no login) and searches official government sites only (GeM, CPPP, eTenders, your state's e-procurement portal, other `.gov.in` / `.nic.in` sites) with **SerpAPI** (Google, past month) and **You.com Search** (`include_domains`, past month). Results are merged and duplicates removed. |
+| **Automatic tender reading** | Each tender page or PDF is read with **You.com Extract** (falls back to a direct download of the public page). Closing date, estimated value, EMD, buyer, bid/tender ID and pincode are extracted; closed tenders are dropped to the bottom. |
+| **Win chance ranking** | Every open tender gets a 0 to 100 win chance (High / Medium / Low) with reasons: eligibility (turnover, experience, certificates), match with what you sell, MSE/startup preference, location, tender size vs your turnover, days left, and buyer risk. |
+| **PDF eligibility check** | EMD, turnover, experience, certifications, MSE/startup relaxations and OEM clauses are compared with your profile, giving red / amber / green flags and a verdict. Runs automatically on the read page, or on a PDF you upload. |
 | **Buyer risk and competitors** | Public search signals about the issuing organisation (disputes, delays, blacklisting), likely competitors and past offer values. |
 | **Bid readiness score** | 0 to 100 from a 15-item document checklist, profile completeness, PDF alignment and time left, with the gaps listed. |
 | **Schemes and benefits** | 13 central MSME, startup and procurement schemes matched to your profile (EMD exemption, purchase preference, CGTMSE, PMEGP and others). |
@@ -26,6 +28,9 @@ Register your business once. TenderSaathi places you in tender categories, finds
 ## What it does not do
 
 - **It does not submit bids.** SerpAPI is a search API; it cannot solve captchas or submit forms, and automating portal submissions would also break most portals' terms. The fill pack prepares your data; you log in, sign with your DSC and submit yourself.
+- **It does not guarantee every active tender.** Discovery uses search indexes (Google via SerpAPI, You.com), which miss some listings and lag by days. Every result is checked for a closing date; tenders without one are marked "verify on portal".
+- **It does not get past CAPTCHAs or logins.** Pages behind them are scored from the search summary only, and flagged as such.
+- **API calls are cached** in SQLite (searches 6 h, tender pages 3 days) to save credits; repeat searches cost nothing.
 - **Competitor, risk and offer data is best-effort.** It is built from public search snippets. Verify award and L1 data on the official portal.
 - **Scanned PDFs are not read.** PDFs need selectable text; there is no OCR.
 - **Scheme details are general summaries.** Limits and eligibility change; each scheme links to its official site.
@@ -77,6 +82,7 @@ Open http://localhost:3000. In `npm run dev`, Next.js proxies `/api/*` to `http:
 | Variable | Purpose |
 | --- | --- |
 | `SERPAPI_KEY` | Tender search and risk analysis ([serpapi.com](https://serpapi.com)) |
+| `YDC_API_KEY` | You.com Search + Extract: tender search and reading tender pages/PDFs ([you.com/platform](https://you.com/platform)) |
 | `SARVAM_API_KEY` | Multilingual chat ([sarvam.ai](https://www.sarvam.ai)) |
 | `SUPABASE_URL` | Supabase project URL, to verify Google sign-in tokens |
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key |
@@ -97,6 +103,18 @@ Without `SERPAPI_KEY` or `SARVAM_API_KEY`, search and chat return a clear "key n
 2. In Supabase, go to Authentication, then Providers, then Google, enable it and paste the client ID and secret.
 3. In Supabase, go to Authentication, then URL Configuration. Set the Site URL to your deployed domain and add redirect URLs for it and for `http://localhost:3000/**`.
 
+## Sample tenders (seed data)
+
+`backend/seed/gem_samples/` holds 20 **synthetic** bid documents in the layout of GeM bid PDFs (Bid Details, EMD/ePBG, MII and MSE purchase preference, relaxation clauses, technical specifications, consignee table, buyer terms, disclaimer). They cover IT hardware, CCTV, LED lights, manpower, housekeeping, security, furniture, vehicles, medical consumables, uniforms, solar, cables, AC maintenance, printers, water purifiers and fire safety across 15 states; 3 are already closed. Every page is watermarked SAMPLE and says it was not issued by GeM.
+
+Click **Load sample tenders** on the Tenders page (or `POST /api/tenders/demo`) to load and score them for the signed-in company. Closing dates are relative to the day they were generated, so regenerate before a demo:
+
+```bash
+cd backend
+pip install reportlab
+python seed/make_gem_samples.py
+```
+
 ## API
 
 All routes are under `/api` and need `Authorization: Bearer <token>` except register, login and langs.
@@ -105,8 +123,13 @@ All routes are under `/api` and need `Authorization: Bearer <token>` except regi
 | --- | --- | --- |
 | POST | `/register`, `/login` | Email/password accounts |
 | GET / PUT | `/me` | Read or update the company profile |
-| POST | `/tenders/search` | Find tenders for the profile (SerpAPI) |
-| GET / POST | `/tenders` | List tenders or add one manually |
+| GET | `/status` | Which of SerpAPI / You.com are configured (no auth) |
+| POST | `/tenders/search` | Find open tenders for the profile: GeM live bid list + SerpAPI + You.com Search |
+| POST | `/tenders/read?limit=4` | Read the next unread tenders (You.com Extract), extract terms, score win chance. Call until `remaining` is 0 |
+| POST | `/tenders/{id}/read` | Re-read one tender from its official page |
+| GET / POST | `/tenders` | List tenders (open first, best win chance first) or add one manually |
+| POST | `/tenders/demo` | Load the 20 sample GeM-format bid PDFs as tenders and score them (call again to re-score) |
+| GET | `/demo/pdf/{name}` | Download a sample bid PDF (no auth; synthetic data) |
 | POST | `/tenders/{id}/analyze` | Upload a tender PDF for eligibility analysis |
 | POST | `/tenders/{id}/intel` | Buyer risk, competitors and past offers |
 | GET / PUT | `/tenders/{id}/readiness` | Bid readiness checklist and score |
@@ -125,6 +148,9 @@ backend/app/
   supabase_auth.py  Supabase token verification
   categories.py     products/services -> tender categories
   serp.py           SerpAPI search and buyer-risk intel
+  youcom.py         You.com Search + Extract client
+  sources.py        official portals (central + state) and URL filters
+  pipeline.py       find -> read -> extract facts -> win chance
   analyzer.py       tender PDF extraction and profile matching
   readiness.py      bid readiness score
   schemes.py        scheme matcher

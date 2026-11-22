@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import SampleNotice from "@/components/SampleNotice";
+import { closesLabel, crore, inr, samplePdf, winCls } from "@/lib/tender";
 import type { Analysis, FillPack, Intel, Readiness, Tender } from "@/lib/types";
 
 const lvl = { green: "green", amber: "amber", red: "red" } as const;
@@ -22,20 +23,62 @@ export default function TenderWorkspace() {
   const loadReady = useCallback(() => api<Readiness>(`/tenders/${id}/readiness`).then(setReady).catch(() => {}), [id]);
   useEffect(() => { loadReady(); }, [loadReady]);
 
+  const reload = () => api<Tender[]>("/tenders").then(all => setT(all.find(x => x.id === id) ?? null)).catch(() => {});
+
   if (!t) return <p className="muted">Loading…</p>;
   return (
     <>
       <p><Link href="/tenders">← All tenders</Link></p>
       <SampleNotice />
       <h2>{t.title}</h2>
-      <span className="pill">{t.kind}</span><span className="pill">{t.category}</span>{t.demo && <span className="pill sample">Sample</span>}
-      {t.link.startsWith("http") && <a href={t.link} target="_blank" rel="noopener noreferrer">Open source ↗</a>}
+      <span className="pill">{t.source}</span><span className="pill">{t.category}</span>{t.demo && <span className="pill sample">Sample</span>}
+      {t.found_via && <span className="pill muted">found via {t.found_via}</span>}
+      {t.link.startsWith("http") && <a href={t.link} target="_blank" rel="noopener noreferrer">Official page ↗</a>}
+      {samplePdf(t) && <a href={samplePdf(t)} target="_blank" rel="noopener noreferrer">Sample PDF ↗</a>}
 
-      <AnalysisCard t={t} onDone={a => { setT({ ...t, analysis: a }); loadReady(); }} />
-      <IntelCard t={t} onDone={i => setT({ ...t, intel: i })} />
+      <WinCard t={t} onRead={setT} />
+      <AnalysisCard t={t} onDone={() => { reload(); loadReady(); }} />
+      <IntelCard t={t} onDone={i => { setT({ ...t, intel: i }); reload(); }} />
       {ready && <ReadinessCard id={id} r={ready} onChange={setReady} />}
       <FillCard id={id} />
     </>
+  );
+}
+
+function WinCard({ t, onRead }: { t: Tender; onRead: (t: Tender) => void }) {
+  const [msg, setMsg] = useState("");
+  const f = t.facts || {};
+  const w = t.win;
+  async function reread() {
+    setMsg("Reading the official page with You.com…");
+    try { onRead(await api<Tender>(`/tenders/${t.id}/read`, { method: "POST" })); setMsg(""); }
+    catch (e) { setMsg((e as Error).message); }
+  }
+  const readBy = { "you.com": "You.com Extract", direct: "direct download", snippet: "search summary only", upload: "your PDF upload", sample: "a sample GeM-format bid PDF (demo data)" }[t.reader ?? ""] || "";
+  return (
+    <div className="card">
+      <div className="tender-head">
+        <div>
+          <h3>Win chance</h3>
+          {closesLabel(t) && <p className={(f.days_left ?? 99) < 3 ? "amber" : ""} style={{ margin: 0 }}>{closesLabel(t)}</p>}
+          {readBy && <p className="muted small" style={{ margin: 0 }}>Read from {readBy}{f.read_note ? ` (${f.read_note})` : ""}</p>}
+        </div>
+        {w ? (
+          <div className={`win ${winCls(w.label)}`}><small>{w.label === "Closed" ? "" : "Win chance"}</small><b>{w.label}</b>{w.label !== "Closed" && <span>{w.score}/100</span>}</div>
+        ) : <div className="win"><small>Not read yet</small></div>}
+      </div>
+      <div className="kv">
+        {f.bid_no && <div><span>Bid / Tender ID</span>{f.bid_no}</div>}
+        {(f.org || t.org) && <div><span>Buyer</span>{t.org || f.org}</div>}
+        {f.value_cr != null && <div><span>Estimated value</span>{crore(f.value_cr)}</div>}
+        {f.emd_rupees != null && <div><span>EMD</span>{inr(f.emd_rupees)}</div>}
+        {f.pincode && <div><span>Pincode</span>{f.pincode}</div>}
+        {f.matched_terms && <div><span>Matches</span>{f.matched_terms.join(", ")}</div>}
+      </div>
+      {w && <ul className="reasons">{w.reasons.map((r, k) => <li key={k} className={r.level}>{r.msg}</li>)}</ul>}
+      {t.link.startsWith("http") && <button onClick={reread}>{w ? "Re-read official page" : "Read official page"}</button>}
+      {msg && <p className="muted">{msg}</p>}
+    </div>
   );
 }
 
@@ -53,7 +96,8 @@ function AnalysisCard({ t, onDone }: { t: Tender; onDone: (a: Analysis) => void 
   const a = t.analysis;
   return (
     <div className="card">
-      <h3>1. Tender PDF analysis</h3>
+      <h3>1. Eligibility check</h3>
+      {!t.demo && <p className="muted small">Checked automatically from the official page. Have the full tender PDF? Upload it for a more exact check.</p>}
       <div className="row">
         {!t.demo && <input type="file" accept="application/pdf" ref={file} style={{ width: "auto" }} />}
         <button onClick={run}>{t.demo ? "Run sample analysis" : "Analyze PDF"}</button>
@@ -65,7 +109,7 @@ function AnalysisCard({ t, onDone }: { t: Tender; onDone: (a: Analysis) => void 
           <ul>{a.flags.map((f, i) => <li key={i} className={lvl[f.level]}>{f.msg}</li>)}</ul>
           <details><summary>Extracted terms</summary><pre>{JSON.stringify(a.terms, null, 2)}</pre></details>
         </>
-      ) : <p className="muted">Upload the tender PDF to check eligibility against your profile.</p>}
+      ) : <p className="muted">Not checked yet. Read the official page above, or upload the tender PDF.</p>}
     </div>
   );
 }
@@ -73,7 +117,7 @@ function AnalysisCard({ t, onDone }: { t: Tender; onDone: (a: Analysis) => void 
 function IntelCard({ t, onDone }: { t: Tender; onDone: (i: Intel) => void }) {
   const [msg, setMsg] = useState("");
   async function run() {
-    setMsg("Searching public sources…");
+    setMsg("Searching public sources with SerpAPI and You.com…");
     try { onDone(await api<Intel>(`/tenders/${t.id}/intel`, { method: "POST" })); setMsg(""); }
     catch (e) { setMsg((e as Error).message); }
   }

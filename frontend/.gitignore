@@ -8,3 +8,4 @@ geist*.woff2
 .originkit/
 .env*.local
 .env
+*.tsbuildinfo

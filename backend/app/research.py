@@ -1,9 +1,6 @@
 """You.com cited research on a tender's buyer (You.com sponsor track)."""
-import os
 import httpx
-
-# shortcut: endpoint/shape not yet verified against current You.com docs; override with YDC_SEARCH_URL.
-YDC_URL = os.getenv("YDC_SEARCH_URL", "https://ydc-index.io/v1/search")
+from . import youcom
 
 
 class ResearchError(Exception):
@@ -18,13 +15,12 @@ def _hits(data):
 
 
 def _search(query, count=5):
-    key = os.getenv("YDC_API_KEY")
-    if not key:
-        raise ResearchError("YDC_API_KEY not set")
-    r = httpx.get(YDC_URL, params={"query": query, "count": count}, headers={"X-API-Key": key}, timeout=30)
-    if r.status_code != 200:
-        raise ResearchError(f"You.com {r.status_code}: {r.text[:160]}")
-    return _hits(r.json())
+    """Shared You.com client (POST /v1/search, cached). Returns hits shaped {url, title, snippets}."""
+    try:
+        res = youcom.search(query, count=count, freshness="")
+    except youcom.YouError as e:
+        raise ResearchError(str(e))
+    return [{"url": h["link"], "title": h["title"], "snippets": [h["snippet"]]} for h in res]
 
 
 def buyer_brief(subject, limit=3):
