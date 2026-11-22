@@ -250,3 +250,79 @@ table td{padding:3px 12px 3px 0;vertical-align:top}
 @keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.45)}50%{box-shadow:0 0 0 6px rgba(255,107,107,0)}}
 .mic-hint{margin:6px 0 0;font-size:12px;color:var(--muted)}
 .mic-hint.err{color:var(--red)}
+
+/* =====================================================================
+   MOBILE (phones). Everything below is scoped to small screens.
+   ===================================================================== */
+.menu-btn{display:none}
+.fit,.tb-badge,.win small,.d-item-side small{font-size:12px}
+.filters{flex-wrap:wrap}
+pre{max-width:100%;overflow-x:auto;font-size:12px}
+table td{overflow-wrap:anywhere}
+
+@media(max-width:760px){
+  /* touch-friendly controls; 16px text stops iOS from zooming into inputs */
+  input,select,textarea{font-size:16px;min-height:44px}
+  input[type=checkbox],input[type=radio]{min-height:0;width:20px;height:20px;flex:none}
+  button{min-height:44px}
+  label.chk{min-height:44px;padding:6px 0}
+  .filters select,.filters input{flex:1 1 150px;min-width:0;width:auto!important}
+
+  /* top bar: title + icons on one row, search on its own full-width row */
+  .topbar{gap:8px;padding:12px 16px 8px}
+  .tb-title{order:1;flex:1 1 0;min-width:0;margin-right:0}
+  .tb-title h1{font-size:20px}
+  .tb-title p{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tb-icon,.lang-wrap,.theme-toggle,.tb-user{order:2}
+  .tb-user{order:3}
+  .tb-icon,.theme-toggle,.lang-btn{width:44px;height:44px;min-height:44px;padding:0;justify-content:center;border-radius:12px}
+  .tb-user>button{width:44px;height:44px;padding:0;justify-content:center;border-radius:50%}
+  .tb-search{order:4;flex:1 1 100%;width:100%}
+  .tb-search input{min-height:44px;padding:0}
+  .tb-menu{min-width:200px}
+  .tb-menu a,.tb-menu button,.tb-switch{min-height:44px}
+  .lang-menu button{min-height:44px}
+
+  /* navigation becomes a bottom tab bar, like a native app */
+  .side{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;z-index:35;flex-direction:row;flex-wrap:nowrap;gap:0;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--line);background:var(--card)}
+  .side .brand,.side .side-card{display:none}
+  .side nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;width:100%}
+  .side nav a{flex-direction:column;justify-content:center;gap:3px;padding:8px 2px;min-height:52px;font-size:12px;text-align:center;border-radius:10px}
+  .content{padding:8px 16px calc(96px + env(safe-area-inset-bottom))}
+  .fab{right:16px;bottom:calc(76px + env(safe-area-inset-bottom))}
+
+  /* dashboard */
+  .d-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .stat{flex-direction:column;align-items:flex-start;gap:10px;padding:14px}
+  .stat .d-ico{width:36px;height:36px}
+  .stat-main b{font-size:26px}
+  .stat-main small,.stat-main em{white-space:normal}
+  .stat>.donut,.stat>svg{display:none}
+  .d-item{align-items:flex-start;padding:12px 0}
+  .d-item-main b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .d-item-main small{white-space:normal}
+  .d-head a{padding:10px 0;margin:-10px 0}
+
+  /* tenders list + workspace */
+  .tender-head{flex-direction:column;align-items:stretch}
+  .win{width:100%;flex-direction:row;justify-content:space-between;align-items:center;min-width:0;gap:10px}
+  .score{font-size:34px}.score small{font-size:16px}
+  .card{padding:14px}
+
+  /* onboarding / forms */
+  .onb{padding:16px 16px 56px}
+  .onb-card{padding:20px 16px}
+  .onb-actions button{flex:1}
+}
+
+@media(max-width:560px){
+  /* chat opens as a full-width sheet; the floating button gets out of the way (it covered Send) */
+  .fab[aria-expanded="true"]{display:none}
+  .chatwin{left:0;right:0;bottom:0;width:auto;height:min(88dvh,calc(100dvh - 16px));border-radius:16px 16px 0 0;padding-bottom:env(safe-area-inset-bottom)}
+  .chatwin header button{min-width:44px}
+  .chatform input{min-width:0}
+  .vplay{width:40px;height:40px}
+  .chips-q button{min-height:40px}
+}
+@media(max-width:760px){.d-head a{padding:12px 8px;margin:-12px -8px}}

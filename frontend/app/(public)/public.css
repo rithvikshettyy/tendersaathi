@@ -178,3 +178,38 @@
 .nf .lead{margin-bottom:28px}
 .nf-links{margin-top:26px;font-size:14px}
 .nf-links a{color:var(--fg)}
+
+/* =====================================================================
+   MOBILE (phones) for the public site
+   ===================================================================== */
+.pnav .menu-btn,.pn-sheet{display:none}
+@media(max-width:760px){
+  .pnav{padding:10px 16px;gap:8px;flex-wrap:nowrap}
+  .pnav .brand{display:inline-flex;align-items:center;min-height:44px;font-size:18px}
+  .pnav .links{gap:8px;margin-left:auto;flex-wrap:nowrap}
+  .pnav .links .lnk,.pnav .links .cta-group{display:none}
+  .pnav .links .lang-btn,.pnav .links .theme-toggle.sm,.pnav .menu-btn{display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border-radius:12px}
+  .pnav .links .lang-btn{display:inline-flex;justify-content:center}
+  .pnav .menu-btn{display:grid}
+  .pn-sheet{display:flex;flex-direction:column;position:absolute;top:calc(100% + 4px);left:12px;right:12px;padding:8px;
+    background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 50px -20px var(--shadow)}
+  .pn-sheet .lnk{display:flex;align-items:center;min-height:48px;padding:0 12px;border-radius:10px;font-size:16px;color:var(--fg);text-decoration:none}
+  .pn-sheet .lnk.on{background:var(--hover)}
+  .pn-cta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;padding:10px 4px 4px;border-top:1px solid var(--line)}
+  .pn-cta a{display:block}.pn-cta button{width:100%}
+
+  .phero{padding:112px 0 56px}
+  .pub main>section.wrap:first-child{padding-top:112px!important}
+  .pub .auth{margin:96px auto 40px}
+  .sec{padding:56px 0}.sec.tight{padding:32px 0}
+  .lead{font-size:16px}
+  .hero-mock{margin-top:40px}
+  .cta-row{flex-direction:column}.cta-row>a{display:block;width:100%}.cta-row button{width:100%}
+  .band{padding:40px 20px}
+  .strip div{border-right:0;border-bottom:1px solid var(--line)}.strip div:last-child{border-bottom:0}
+  .faq summary{min-height:44px;align-items:center}
+  .pfoot{flex-direction:column;padding:24px 16px}
+  .pf-links{display:flex;flex-wrap:wrap;gap:0 18px}.pf-links a{margin-left:0;padding:12px 0}
+}
+@media(max-width:760px){.pf-links a{padding:12px 8px;margin-left:-8px}}
+@media(max-width:760px){.pnav .links .menu-btn{padding:0;width:44px;height:44px;min-height:44px}.pnav .links .menu-btn svg{flex:none}}
