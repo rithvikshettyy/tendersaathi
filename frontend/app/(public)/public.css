@@ -40,9 +40,10 @@
 
 /* hero */
 .phero{position:relative;padding:120px 0 90px;overflow:hidden}
-.phero::before{content:"";position:absolute;inset:-20% -10% auto -10%;height:520px;
-  background:radial-gradient(60% 60% at 50% 0%,rgba(193,8,1,.38),transparent 70%);pointer-events:none}
-.phero>*{position:relative}
+.hero-bg{position:absolute;inset:0;z-index:0;background:#000}
+.phero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:220px;z-index:0;background:linear-gradient(to bottom,transparent,#000);pointer-events:none}
+.phero .wrap{pointer-events:none}.phero .wrap a,.phero .wrap button{pointer-events:auto}
+.phero>.wrap{position:relative;z-index:1}
 .badge{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);margin-bottom:26px}
 .badge b{color:var(--acc2);font-weight:600}
 
@@ -156,3 +157,5 @@
 .v-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;font-size:18px}.v-head span{font-size:13px;color:var(--muted)}
 .verdict small{display:block;margin-top:12px}
 .pub .lead a{color:#F16001}
+.phero button:not(.primary){background:rgba(0,0,0,.65);border-color:#A7A7A7}
+.phero button:not(.primary):hover{background:#000}

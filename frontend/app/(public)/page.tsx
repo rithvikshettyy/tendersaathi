@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
+import HeroGrass from "@/components/HeroGrass";
 
 const SOURCES = ["GeM", "eProcure", "eTenders", "TenderDetail", "Tender247", "BidAssist", "State portals", "Private vendor portals"];
 const LANGS = ["English", "हिन्दी", "বাংলা", "தமிழ்", "తెలుగు", "ಕನ್ನಡ", "മലയാളം", "मराठी", "ગુજરાતી", "ਪੰਜਾਬੀ", "ଓଡ଼ିଆ"];
@@ -52,6 +53,7 @@ export default function Home() {
     <>
       {/* HERO */}
       <section className="phero">
+        <HeroGrass />
         <div className="wrap center">
           <span className="badge"><b>Tender intelligence</b> for Indian manufacturers & service providers</span>
           <h1 className="h-xl">Know if you qualify <span className="grad">before you read page one.</span></h1>
