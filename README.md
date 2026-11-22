@@ -47,6 +47,8 @@ The browser only talks to the frontend. `/api/*` is proxied to the backend by a 
 
 **Auth.** Email/password uses sessions issued by the backend. Google sign-in uses Supabase; the backend verifies the Supabase access token by calling Supabase's `/auth/v1/user` (no JWT secret needed) and only trusts verified emails. A first Google login creates an empty company, finished in onboarding.
 
+**Profile storage.** Company profiles are also mirrored to a Supabase table, `public.profiles` (one row per Google user, row-level security so each user sees only their own; schema in `supabase/migrations/`). The backend's own database can be reset on some hosts, so on login the app restores the profile from Supabase when the backend has none. This also seeds the backend for a user who already has a row.
+
 **Offline tolerance.** If the backend is unreachable but you have a real Supabase session, the dashboard still opens with a banner. Onboarding answers are then saved in the browser and synced to the backend when it responds.
 
 ## Getting started

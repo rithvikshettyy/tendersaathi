@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, isUnreachable, signOutEverywhere, tokenStore } from "./api";
 import { getSupabase, supabaseConfigured } from "./supabase";
 import { cache, draft, isProfileComplete, pickProfile } from "./profile";
+import { remoteProfile, sameProfile } from "./profile-store";
 import { loginUrl, nextStore } from "./session";
 import { setProfile as setDemoProfile } from "./demo";
 import type { Company } from "./types";
@@ -66,20 +67,29 @@ export function AuthGate({ children, requireProfile = false }: { children: React
       }
 
       const email = company.email;
-      const pending = draft.get(email);   // changes made while offline, not yet on the server
-      const known = cache.get(email);     // last good copy, kept on this device
+      const pending = draft.get(email);          // changes made while offline, not yet on the server
+      const known = cache.get(email);            // last good copy, kept on this device
+      const remote = await remoteProfile.get();  // durable copy in Supabase (Google users); null otherwise
       if (isOffline) {
-        const local = pending ?? known;
+        const local = pending ?? remote ?? known;
         if (local) company = { ...company, ...local };
       } else {
         if (pending) {
           try { company = await api<Company>("/me", { method: "PUT", body: pending }); draft.clear(email); }
           catch { company = { ...company, ...pending }; }
-        } else if (!isProfileComplete(company) && known && isProfileComplete(known)) {
-          try { company = await api<Company>("/me", { method: "PUT", body: known }); }   // server forgot us: restore
-          catch { company = { ...company, ...known }; }
+        } else if (!isProfileComplete(company)) {
+          // The backend has no usable profile (new account, or its database was reset): restore it from
+          // Supabase, else from this device. This also seeds the backend for users who already have a row.
+          const restore = [remote, known].find(x => x && isProfileComplete(x));
+          if (restore) {
+            try { company = await api<Company>("/me", { method: "PUT", body: restore }); }
+            catch { company = { ...company, ...restore }; }
+          }
         }
-        if (isProfileComplete(company)) cache.set(email, company);
+        if (isProfileComplete(company)) {
+          cache.set(email, company);
+          if (!remote || !sameProfile(remote, company)) void remoteProfile.save(pickProfile(company), company.categories);
+        }
       }
 
       if (cancelled) return;

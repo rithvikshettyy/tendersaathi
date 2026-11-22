@@ -5,6 +5,7 @@ import { api, isUnreachable } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { INDIAN_STATES, GSTIN_RE, cache, draft, isProfileComplete, normGstin, pickProfile } from "@/lib/profile";
 import { nextStore } from "@/lib/session";
+import { remoteProfile } from "@/lib/profile-store";
 import ThemeToggle from "@/components/ThemeToggle";
 import type { Company, Profile } from "@/lib/types";
 
@@ -55,12 +56,14 @@ export default function Onboarding() {
       const c = await api<Company>("/me", { method: "PUT", body: payload });
       draft.clear(me.email);
       cache.set(me.email, c);
+      void remoteProfile.save(payload, c.categories);
       setMe(c);
       router.replace(nextStore.take() ?? "/dashboard");
     } catch (err) {
       if (isUnreachable(err)) {           // keep the answers; they sync when the server is back
         draft.set(me.email, payload);
         cache.set(me.email, payload);
+        void remoteProfile.save(payload);
         setMe({ ...me, ...payload });
         router.replace(nextStore.take() ?? "/dashboard");
       } else { setMsg((err as Error).message); setBusy(false); }
