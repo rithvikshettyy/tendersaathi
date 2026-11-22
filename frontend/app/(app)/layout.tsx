@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AuthGate, useAuth } from "@/lib/auth";
+import ChatWidget from "@/components/ChatWidget";
 
 const LINKS = [
   ["/dashboard", "Dashboard"],
@@ -30,6 +31,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         {offline && <div className="offline">You're signed in, but the TenderSaathi server can't be reached right now, so tenders and profile data can't load yet.</div>}
         {children}
       </main>
+      <ChatWidget />
     </div>
   );
 }
