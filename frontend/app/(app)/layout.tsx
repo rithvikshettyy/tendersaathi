@@ -35,5 +35,5 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return <AuthGate><Shell>{children}</Shell></AuthGate>;
+  return <AuthGate requireProfile><Shell>{children}</Shell></AuthGate>;
 }

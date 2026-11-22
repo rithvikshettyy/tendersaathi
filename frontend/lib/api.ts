@@ -6,6 +6,10 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
+/** Backend down/unreachable (as opposed to a bad login). */
+export const isUnreachable = (e: unknown) =>
+  !(e instanceof ApiError) || [404, 500, 502, 503, 504].includes(e.status);
+
 export const tokenStore = {
   get: () => (typeof window === "undefined" ? null : localStorage.getItem("ts_token")),
   /** Email/password session token from our own backend. */
