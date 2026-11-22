@@ -38,7 +38,8 @@ def extract_terms(t):
         re.search(r"experience[^.]{0,60}?(\d{1,2})\s*years?", low, re.I)
     if m:
         out["min_experience_years"] = int(m.group(1))
-    m = re.search(r"(?:bid|tender)?\s*(?:submission|closing|due)\s*(?:date|end)?[^\d]{0,30}(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})", low, re.I)
+    m = re.search(r"(?:bid|tender)?\s*(?:submission|closing|due|last|end)\s*(?:date|end)?[^\d]{0,30}"
+                  r"(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[- ][A-Za-z]{3}[- ]\d{4})", low, re.I)
     if m:
         out["deadline"] = m.group(1)
     certs = [c for c in ["ISO 9001", "ISO 14001", "ISO 45001", "BIS", "ISI", "CE mark", "NABL",
