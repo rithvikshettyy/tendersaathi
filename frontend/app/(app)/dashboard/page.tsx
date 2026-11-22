@@ -5,10 +5,11 @@ import { useAuth } from "@/lib/auth";
 import { useTenders } from "@/lib/tenders-context";
 import { buildAlerts, parseUtc, relTime, verdictOf } from "@/lib/tenders";
 import { Donut, Sparkline } from "@/components/dash/Charts";
+import SampleNotice from "@/components/SampleNotice";
 import { IconAlert, IconBuilding, IconClock, IconPdf, IconShield, IconSpark, IconTarget, IconTenders } from "@/components/icons";
 import type { Tender } from "@/lib/types";
 
-const COLORS = { high: "#E8DFD0", medium: "#B8758C", low: "#6E1E3B" };
+const COLORS = { high: "var(--c1)", medium: "var(--c2)", low: "var(--c3)" };
 
 /** Cumulative number of tenders found per day over the last `days` days. */
 function trend(tenders: Tender[], days = 7): number[] {
@@ -47,6 +48,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <SampleNotice />
       {me.categories.length > 0 && (
         <p className="muted d-cats">Your categories: {me.categories.map(c => <span className="pill" key={c}>{c}</span>)}</p>
       )}
@@ -77,7 +79,7 @@ export default function Dashboard() {
             <b>{d.avgScope === null ? "—" : `${d.avgScope}%`}</b>
             <em>{d.avgScope === null ? "Analyse a PDF to see this" : "from analysed PDFs"}</em>
           </div>
-          <Donut size={52} thickness={7} segments={[{ value: d.avgScope ?? 0, color: "#B8758C" }, { value: 100 - (d.avgScope ?? 0), color: "transparent" }]} />
+          <Donut size={52} thickness={7} segments={[{ value: d.avgScope ?? 0, color: "var(--rose)" }, { value: 100 - (d.avgScope ?? 0), color: "transparent" }]} />
         </div>
         <div className="d-card stat">
           <span className="d-ico"><IconPdf /></span>

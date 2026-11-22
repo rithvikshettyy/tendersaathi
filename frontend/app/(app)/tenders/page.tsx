@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import SampleNotice from "@/components/SampleNotice";
 import type { Tender } from "@/lib/types";
 
 const verdictCls = (v?: string) => (v === "Well aligned" ? "green" : v === "Not aligned" ? "red" : "amber");
@@ -21,8 +22,8 @@ export default function Tenders() {
   async function search() {
     setBusy(true); setMsg("Searching government and private portals across India…");
     try {
-      const r = await api<{ found: number; new: number }>("/tenders/search", { method: "POST" });
-      setMsg(`Found ${r.found} results, ${r.new} new.`);
+      const r = await api<{ found: number; new: number; demo?: boolean }>("/tenders/search", { method: "POST" });
+      setMsg(r.demo ? `Live search isn't available, so I added ${r.new} sample tenders.` : `Found ${r.found} results, ${r.new} new.`);
       await load();
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   }
@@ -47,6 +48,7 @@ export default function Tenders() {
           <button onClick={addManual}>+ Add manually</button>
         </div>
       </div>
+      <SampleNotice />
       {msg && <p className="muted">{msg}</p>}
       <div className="filters">
         <input type="search" placeholder="Filter tenders…" value={q} onChange={e => setQ(e.target.value)} style={{ width: 220 }} />
@@ -62,7 +64,7 @@ export default function Tenders() {
       {list.map(t => (
         <div className="card tender" key={t.id}>
           <h3>{t.title}</h3>
-          <span className="pill">{t.kind}</span><span className="pill">{t.category}</span>
+          <span className="pill">{t.kind}</span><span className="pill">{t.category}</span>{t.demo && <span className="pill sample">Sample</span>}
           {t.org && <span className="pill">{t.org}</span>}
           {t.analysis && <span className={`pill ${verdictCls(t.analysis.verdict)}`}>{t.analysis.verdict}</span>}
           {t.intel && <span className="pill">Risk: {t.intel.risk_level}</span>}

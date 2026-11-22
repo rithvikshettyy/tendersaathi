@@ -10,9 +10,14 @@ export const metadata: Metadata = {
   description: "Tender discovery, eligibility analysis and bid readiness for Indian manufacturers",
 };
 
+// Runs before first paint so the page never flashes the wrong theme.
+// Uses the saved choice, otherwise the operating system's light/dark setting.
+const THEME_INIT = `try{var t=localStorage.getItem("ts_theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="dark"}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT }} /></head>
       <body>{children}</body>
     </html>
   );

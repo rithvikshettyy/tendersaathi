@@ -5,6 +5,7 @@ import { api, ApiError, isUnreachable, signOutEverywhere, tokenStore } from "./a
 import { getSupabase, supabaseConfigured } from "./supabase";
 import { cache, draft, isProfileComplete, pickProfile } from "./profile";
 import { loginUrl, nextStore } from "./session";
+import { setProfile as setDemoProfile } from "./demo";
 import type { Company } from "./types";
 
 interface Ctx { me: Company; setMe: (c: Company) => void; logout: () => void; offline: boolean }
@@ -107,5 +108,6 @@ export function AuthGate({ children, requireProfile = false }: { children: React
     );
   }
   if (!me) return <p className="muted pad">Loading…</p>;
+  setDemoProfile(me);   // sample data is generated for this profile; set before children fetch
   return <AuthCtx.Provider value={{ me, setMe, logout, offline }}>{children}</AuthCtx.Provider>;
 }

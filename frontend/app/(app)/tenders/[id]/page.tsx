@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import SampleNotice from "@/components/SampleNotice";
 import type { Analysis, FillPack, Intel, Readiness, Tender } from "@/lib/types";
 
 const lvl = { green: "green", amber: "amber", red: "red" } as const;
@@ -25,8 +26,9 @@ export default function TenderWorkspace() {
   return (
     <>
       <p><Link href="/tenders">← All tenders</Link></p>
+      <SampleNotice />
       <h2>{t.title}</h2>
-      <span className="pill">{t.kind}</span><span className="pill">{t.category}</span>
+      <span className="pill">{t.kind}</span><span className="pill">{t.category}</span>{t.demo && <span className="pill sample">Sample</span>}
       {t.link.startsWith("http") && <a href={t.link} target="_blank" rel="noopener noreferrer">Open source ↗</a>}
 
       <AnalysisCard t={t} onDone={a => { setT({ ...t, analysis: a }); loadReady(); }} />
@@ -42,8 +44,8 @@ function AnalysisCard({ t, onDone }: { t: Tender; onDone: (a: Analysis) => void 
   const [msg, setMsg] = useState("");
   async function run() {
     const f = file.current?.files?.[0];
-    if (!f) return;
-    const form = new FormData(); form.append("file", f);
+    if (!f && !t.demo) return;               // sample tenders need no file
+    const form = new FormData(); if (f) form.append("file", f);
     setMsg("Reading…");
     try { onDone(await api<Analysis>(`/tenders/${t.id}/analyze`, { form })); setMsg(""); }
     catch (e) { setMsg((e as Error).message); }
@@ -52,7 +54,10 @@ function AnalysisCard({ t, onDone }: { t: Tender; onDone: (a: Analysis) => void 
   return (
     <div className="card">
       <h3>1. Tender PDF analysis</h3>
-      <div className="row"><input type="file" accept="application/pdf" ref={file} style={{ width: "auto" }} /><button onClick={run}>Analyze PDF</button></div>
+      <div className="row">
+        {!t.demo && <input type="file" accept="application/pdf" ref={file} style={{ width: "auto" }} />}
+        <button onClick={run}>{t.demo ? "Run sample analysis" : "Analyze PDF"}</button>
+      </div>
       {msg && <p className="muted">{msg}</p>}
       {a ? (
         <>
@@ -82,7 +87,7 @@ function IntelCard({ t, onDone }: { t: Tender; onDone: (i: Intel) => void }) {
         <>
           <h4>Risk: <span className={riskCls(i.risk_level)}>{i.risk_level}</span> (score {i.risk_score}) · {i.subject}</h4>
           {i.flags.length > 0 && <><b>Signals</b><ul>{i.flags.map((f, k) => (
-            <li key={k}>{f.signal}: {f.text} <a href={f.source} target="_blank" rel="noopener noreferrer">src</a></li>))}</ul></>}
+            <li key={k}>{f.signal}: {f.text} {f.source.startsWith("http") && <a href={f.source} target="_blank" rel="noopener noreferrer">src</a>}</li>))}</ul></>}
           <p><b>Likely competitors</b> {i.competitors.length
             ? i.competitors.map(c => <span className="pill" key={c.name}>{c.name} ×{c.mentions}</span>)
             : <span className="muted">none found</span>}</p>

@@ -21,5 +21,9 @@ export function TendersProvider({ children }: { children: ReactNode }) {
     setLoaded(true);
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    window.addEventListener("ts:demo", refresh);
+    return () => window.removeEventListener("ts:demo", refresh);
+  }, [refresh]);
   return <TendersCtx.Provider value={{ tenders, loaded, refresh }}>{children}</TendersCtx.Provider>;
 }

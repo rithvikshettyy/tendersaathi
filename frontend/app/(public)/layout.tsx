@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { tokenStore } from "@/lib/api";
+import ThemeToggle from "@/components/ThemeToggle";
 import "./public.css";
 
 const LINKS = [["/features", "Features"], ["/how-it-works", "How it works"], ["/about", "About"]] as const;
@@ -20,6 +21,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           {LINKS.map(([href, label]) => (
             <Link key={href} href={href} className={`lnk ${path === href ? "on" : ""}`}>{label}</Link>
           ))}
+          <ThemeToggle className="theme-toggle sm" />
           {authed ? (
             <Link href="/dashboard"><button className="primary">Dashboard</button></Link>
           ) : (

@@ -16,6 +16,8 @@ export interface Tender {
   id: number; title: string; link: string; snippet: string; source: string; kind: string;
   org: string; category: string; deadline: string; found: string;
   analysis: Analysis | null; intel: Intel | null;
+  /** Sample (synthetic) tender shown when live data is not available. */
+  demo?: boolean;
 }
 export interface Readiness {
   score: number; grade: string; days_left: number | null; gaps: string[];

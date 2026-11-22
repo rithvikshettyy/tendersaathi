@@ -1,4 +1,5 @@
 import { getSupabase, supabaseConfigured } from "./supabase";
+import { route as demoRoute } from "./demo";
 
 const PROVIDER_KEY = "ts_provider";
 
@@ -37,7 +38,12 @@ async function freshToken(): Promise<string | null> {
 
 interface Opts { method?: string; body?: unknown; form?: FormData }
 
-export async function api<T>(path: string, { method, body, form }: Opts = {}): Promise<T> {
+/** Every call goes through the sample-data router: real data wins, sample data only fills gaps (see lib/demo.ts). */
+export function api<T>(path: string, opts: Opts = {}): Promise<T> {
+  return demoRoute<T>(path, opts, () => rawApi<T>(path, opts));
+}
+
+async function rawApi<T>(path: string, { method, body, form }: Opts = {}): Promise<T> {
   const headers: Record<string, string> = {};
   const token = await freshToken();
   if (token) headers.Authorization = `Bearer ${token}`;

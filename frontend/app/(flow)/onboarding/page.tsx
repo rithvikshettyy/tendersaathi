@@ -5,6 +5,7 @@ import { api, isUnreachable } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { INDIAN_STATES, GSTIN_RE, cache, draft, isProfileComplete, normGstin, pickProfile } from "@/lib/profile";
 import { nextStore } from "@/lib/session";
+import ThemeToggle from "@/components/ThemeToggle";
 import type { Company, Profile } from "@/lib/types";
 
 type Errors = Partial<Record<keyof Profile, string>>;
@@ -78,7 +79,7 @@ export default function Onboarding() {
     <div className="onb">
       <div className="onb-top">
         <b>Tender<span>Saathi</span></b>
-        <a href="#" onClick={ev => { ev.preventDefault(); logout(); }}>Log out</a>
+        <span className="row"><ThemeToggle /><a href="#" onClick={ev => { ev.preventDefault(); logout(); }}>Log out</a></span>
       </div>
       <div className="card onb-card">
         <p className="muted">Step {step} of 2 · {me.email}</p>

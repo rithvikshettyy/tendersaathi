@@ -14,11 +14,11 @@ export function Donut({ segments, size = 150, thickness = 16, children }: {
     <div className="donut" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img">
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={thickness} />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" style={{ stroke: "var(--line)" }} strokeWidth={thickness} />
           {total > 0 && segments.filter(s => s.value > 0).map((s, i) => {
             const len = (s.value / total) * c;
             const el = (
-              <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.color} strokeWidth={thickness}
+              <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" style={{ stroke: s.color }} strokeWidth={thickness}
                 strokeDasharray={`${Math.max(len - 2, 0)} ${c - Math.max(len - 2, 0)}`} strokeDashoffset={-offset} />
             );
             offset += len;
@@ -41,8 +41,8 @@ export function Sparkline({ values, width = 96, height = 34 }: { values: number[
   const [lx, ly] = pts[pts.length - 1];
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-      <path d={d} fill="none" stroke="var(--rose)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lx} cy={ly} r="2.6" fill="var(--rose)" />
+      <path d={d} fill="none" style={{ stroke: "var(--rose)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lx} cy={ly} r="2.6" style={{ fill: "var(--rose)" }} />
     </svg>
   );
 }
