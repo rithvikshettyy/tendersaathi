@@ -66,7 +66,7 @@ def ask(question, context_docs, lang="en", history=None):
            [{"role": "user", "content": question}]
     r = httpx.post("https://api.sarvam.ai/v1/chat/completions", timeout=60,
                    headers={"api-subscription-key": key, "Content-Type": "application/json"},
-                   json={"model": "sarvam-m", "messages": msgs, "temperature": 0.3})
+                   json={"model": "sarvam-105b-conversations", "messages": msgs, "temperature": 0.3})
     if r.status_code != 200:
         raise RuntimeError(f"Sarvam {r.status_code}: {r.text[:200]}")
     text = r.json()["choices"][0]["message"]["content"]
