@@ -11,7 +11,7 @@ from . import db, categories, serp, analyzer, schemes, readiness, rag  # noqa: E
 
 db.init()
 app = FastAPI(title="TenderSaathi")
-STATIC = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+STATIC = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend")
 
 
 class Profile(BaseModel):
