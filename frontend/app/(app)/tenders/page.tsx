@@ -13,7 +13,7 @@ export default function Tenders() {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => api<Tender[]>("/tenders").then(setTenders), []);
+  const load = useCallback(() => api<Tender[]>("/tenders").then(setTenders).catch(() => setTenders([])), []);
   useEffect(() => { load(); }, [load]);
 
   async function search() {

@@ -14,11 +14,11 @@ export default function TenderWorkspace() {
   const [t, setT] = useState<Tender | null>(null);
 
   useEffect(() => {
-    api<Tender[]>("/tenders").then(all => setT(all.find(x => x.id === id) ?? null));
+    api<Tender[]>("/tenders").then(all => setT(all.find(x => x.id === id) ?? null)).catch(() => setT(null));
   }, [id]);
 
   const [ready, setReady] = useState<Readiness | null>(null);
-  const loadReady = useCallback(() => api<Readiness>(`/tenders/${id}/readiness`).then(setReady), [id]);
+  const loadReady = useCallback(() => api<Readiness>(`/tenders/${id}/readiness`).then(setReady).catch(() => {}), [id]);
   useEffect(() => { loadReady(); }, [loadReady]);
 
   if (!t) return <p className="muted">Loading…</p>;

@@ -12,7 +12,7 @@ export default function Chat() {
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { api<Record<string, string>>("/langs").then(setLangs); }, []);
+  useEffect(() => { api<Record<string, string>>("/langs").then(setLangs).catch(() => {}); }, []);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [log]);
 
   async function send(e: FormEvent) {
