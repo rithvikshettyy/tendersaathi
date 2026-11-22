@@ -12,7 +12,7 @@ const FAQ = [
 export default function About() {
   return (
     <>
-      <section className="wrap sec tight" style={{ paddingTop: 96 }}>
+      <section className="wrap sec tight" style={{ paddingTop: 150 }}>
         <span className="eyebrow">About</span>
         <h1 className="h-xl" style={{ fontSize: "clamp(32px,5vw,52px)" }}>Tenders are open to all. <span className="grad">Few are ready.</span></h1>
         <p className="lead">

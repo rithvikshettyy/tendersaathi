@@ -17,8 +17,8 @@
 .pub input:focus,.pub select:focus,.pub textarea:focus{outline:none;border-color:var(--acc)}
 
 /* nav */
-.pnav{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
-  padding:14px 6vw;background:rgba(26,25,25,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.pnav{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:14px 6vw;background:transparent}
 .pnav .brand{font-weight:600;font-size:19px;letter-spacing:-.02em;color:#E8DFD0;text-decoration:none}
 .pnav .brand span{color:var(--acc2)}
 .pnav .links{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -38,7 +38,7 @@
 .cta-row{display:flex;gap:12px;flex-wrap:wrap}.center .cta-row{justify-content:center}
 
 /* hero */
-.phero{position:relative;padding:120px 0 90px;overflow:hidden}
+.phero{position:relative;padding:190px 0 90px;overflow:hidden}
 .hero-bg{position:absolute;inset:0;z-index:0;background:#1A1919}
 .phero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:220px;z-index:0;background:linear-gradient(to bottom,transparent,#1A1919);pointer-events:none}
 .phero .wrap{pointer-events:none}.phero .wrap a,.phero .wrap button{pointer-events:auto}
@@ -80,7 +80,7 @@
 .pfoot a{color:var(--muted);text-decoration:none;margin-left:16px}.pfoot a:hover{color:#E8DFD0}
 
 /* auth */
-.pub .auth{max-width:620px;margin:56px auto;padding:0 16px}
+.pub .auth{max-width:620px;margin:120px auto 56px;padding:0 16px}
 .pub .auth .card{padding:28px}
 
 /* ===== scroll reveal ===== */

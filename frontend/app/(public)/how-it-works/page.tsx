@@ -11,7 +11,7 @@ const STEPS = [
 export default function HowItWorks() {
   return (
     <>
-      <section className="wrap sec tight" style={{ paddingTop: 96 }}>
+      <section className="wrap sec tight" style={{ paddingTop: 150 }}>
         <span className="eyebrow">How it works</span>
         <h1 className="h-xl" style={{ fontSize: "clamp(32px,5vw,52px)" }}>Five steps. <span className="grad">No guesswork.</span></h1>
         <p className="lead">A simple path from a blank profile to a confident bid.</p>

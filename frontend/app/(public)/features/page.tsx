@@ -22,7 +22,7 @@ const FEATURES = [
 export default function Features() {
   return (
     <>
-      <section className="wrap sec tight" style={{ paddingTop: 96 }}>
+      <section className="wrap sec tight" style={{ paddingTop: 150 }}>
         <span className="eyebrow">Features</span>
         <h1 className="h-xl" style={{ fontSize: "clamp(32px,5vw,52px)" }}>Everything you need <span className="grad">before you bid.</span></h1>
         <p className="lead">Eight tools, one workspace. Each one removes a reason to lose a tender.</p>
