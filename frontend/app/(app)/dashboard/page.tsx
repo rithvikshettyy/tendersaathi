@@ -5,7 +5,6 @@ import { useAuth } from "@/lib/auth";
 import { useTenders } from "@/lib/tenders-context";
 import { buildAlerts, parseUtc, relTime, verdictOf } from "@/lib/tenders";
 import { Donut, Sparkline } from "@/components/dash/Charts";
-import SampleNotice from "@/components/SampleNotice";
 import { IconAlert, IconBuilding, IconClock, IconPdf, IconShield, IconSpark, IconTarget, IconTenders } from "@/components/icons";
 import type { Tender } from "@/lib/types";
 
@@ -48,7 +47,6 @@ export default function Dashboard() {
 
   return (
     <>
-      <SampleNotice />
       {me.categories.length > 0 && (
         <p className="muted d-cats">Your categories: {me.categories.map(c => <span className="pill" key={c}>{c}</span>)}</p>
       )}

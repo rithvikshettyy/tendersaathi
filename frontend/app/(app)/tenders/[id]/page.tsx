@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import SampleNotice from "@/components/SampleNotice";
 import { closesLabel, crore, inr, samplePdf, winCls } from "@/lib/tender";
 import type { Analysis, FillPack, Intel, Readiness, Tender } from "@/lib/types";
 
@@ -29,7 +28,6 @@ export default function TenderWorkspace() {
   return (
     <>
       <p><Link href="/tenders">← All tenders</Link></p>
-      <SampleNotice />
       <h2>{t.title}</h2>
       <span className="pill">{t.source}</span><span className="pill">{t.category}</span>{t.demo && <span className="pill sample">Sample</span>}
       {t.found_via && <span className="pill muted">found via {t.found_via}</span>}

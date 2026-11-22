@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import SampleNotice from "@/components/SampleNotice";
 import { closesLabel, crore, inr, isOpen, samplePdf, winCls } from "@/lib/tender";
 import type { ReadResult, SearchResult, Tender } from "@/lib/types";
 
@@ -113,7 +112,6 @@ export default function Tenders() {
           <span className={`pill ${apis.youcom ? "green" : "red"}`}>You.com {apis.youcom ? "connected" : "key missing"}</span>
         </p>
       )}
-      <SampleNotice />
       {msg && <p className="muted">{msg}</p>}
       {progress && (
         <div className="progress">
