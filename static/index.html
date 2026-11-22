@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TenderSaathi</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Tender<span>Saathi</span></h1>
+  <nav id="nav" hidden>
+    <button data-tab="tenders" class="on">Tenders</button>
+    <button data-tab="profile">Profile</button>
+    <button data-tab="schemes">Schemes</button>
+    <button data-tab="chat">Chat</button>
+    <button id="logout">Logout</button>
+  </nav>
+</header>
+
+<main>
+  <section id="auth">
+    <div class="card">
+      <h2 id="authTitle">Register your company</h2>
+      <form id="authForm" class="grid">
+        <input name="email" type="email" placeholder="Email" required>
+        <input name="password" type="password" placeholder="Password" required minlength="6">
+        <div id="regFields" class="grid full"></div>
+        <button class="primary full">Continue</button>
+        <a href="#" id="toggleAuth" class="full">Already registered? Log in</a>
+      </form>
+      <p id="authErr" class="err"></p>
+    </div>
+  </section>
+
+  <section id="tab-tenders" class="tab" hidden>
+    <div class="bar">
+      <div id="cats"></div>
+      <div>
+        <button id="searchBtn" class="primary">Find tenders (SerpAPI)</button>
+        <button id="addManual">+ Add tender manually</button>
+      </div>
+    </div>
+    <p id="msg" class="muted"></p>
+    <div class="filters">
+      <select id="fKind"><option value="">All sources</option><option>government</option><option value="private/aggregator">private / aggregator</option><option>manual</option></select>
+      <select id="fCat"><option value="">All categories</option></select>
+    </div>
+    <div id="tenderList"></div>
+  </section>
+
+  <section id="tab-profile" class="tab" hidden>
+    <div class="card"><h2>Company profile</h2>
+      <form id="profileForm" class="grid"></form>
+      <p id="profMsg" class="muted"></p>
+    </div>
+  </section>
+
+  <section id="tab-schemes" class="tab" hidden><div id="schemeList"></div></section>
+
+  <section id="tab-chat" class="tab" hidden>
+    <div class="card">
+      <div class="bar"><h2>Ask TenderSaathi</h2><select id="lang"></select></div>
+      <div id="chatLog"></div>
+      <form id="chatForm"><input id="chatQ" placeholder="Ask about your tenders, eligibility, schemes..." required><button class="primary">Send</button></form>
+    </div>
+  </section>
+</main>
+
+<dialog id="modal"><div id="modalBody"></div><button onclick="modal.close()">Close</button></dialog>
+<script src="/static/app.js"></script>
+</body>
+</html>
