@@ -31,6 +31,21 @@ export const draft = {
   clear(email: string) { try { localStorage.removeItem(key(email)); } catch { /* storage blocked */ } },
 };
 
+/**
+ * Last known good profile, kept on this device. If the backend ever forgets the account
+ * (e.g. a host with a non-persistent database), we restore from this instead of
+ * making a returning user fill the onboarding form again.
+ */
+const ckey = (email: string) => `ts_profile_cache:${email.toLowerCase()}`;
+export const cache = {
+  get(email: string): Profile | null {
+    try { const v = localStorage.getItem(ckey(email)); return v ? pickProfile(JSON.parse(v)) : null; } catch { return null; }
+  },
+  set(email: string, p: Partial<Profile>) {
+    try { localStorage.setItem(ckey(email), JSON.stringify(pickProfile(p))); } catch { /* storage blocked */ }
+  },
+};
+
 export const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
   "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",

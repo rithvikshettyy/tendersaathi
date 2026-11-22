@@ -1,9 +1,10 @@
 "use client";
-import { useState, type InputHTMLAttributes } from "react";
+import { useEffect, useState, type InputHTMLAttributes } from "react";
 import { useRouter } from "next/navigation";
 import { api, isUnreachable } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { INDIAN_STATES, GSTIN_RE, draft, normGstin, pickProfile } from "@/lib/profile";
+import { INDIAN_STATES, GSTIN_RE, cache, draft, isProfileComplete, normGstin, pickProfile } from "@/lib/profile";
+import { nextStore } from "@/lib/session";
 import type { Company, Profile } from "@/lib/types";
 
 type Errors = Partial<Record<keyof Profile, string>>;
@@ -16,6 +17,9 @@ export default function Onboarding() {
   const [errors, setErrors] = useState<Errors>({});
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Already onboarded (back button, bookmark, a second tab)? Don't ask again.
+  useEffect(() => { if (isProfileComplete(me)) router.replace(nextStore.take() ?? "/dashboard"); }, [me, router]);
 
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => {
     setP(prev => ({ ...prev, [k]: v }));
@@ -49,13 +53,15 @@ export default function Onboarding() {
     try {
       const c = await api<Company>("/me", { method: "PUT", body: payload });
       draft.clear(me.email);
+      cache.set(me.email, c);
       setMe(c);
-      router.replace("/dashboard");
+      router.replace(nextStore.take() ?? "/dashboard");
     } catch (err) {
       if (isUnreachable(err)) {           // keep the answers; they sync when the server is back
         draft.set(me.email, payload);
+        cache.set(me.email, payload);
         setMe({ ...me, ...payload });
-        router.replace("/dashboard");
+        router.replace(nextStore.take() ?? "/dashboard");
       } else { setMsg((err as Error).message); setBusy(false); }
     }
   }

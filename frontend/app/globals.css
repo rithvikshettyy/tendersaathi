@@ -175,3 +175,4 @@ table td{padding:3px 12px 3px 0;vertical-align:top}
   .d-card{padding:16px}
   .topbar{gap:12px}.tb-title{flex-basis:100%}.tb-search{flex:1}
 }
+.notice{margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;color:var(--muted);font-size:14px}
