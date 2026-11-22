@@ -5,6 +5,7 @@ import { api, ApiError, isUnreachable, signOutEverywhere, tokenStore } from "./a
 import { getSupabase, supabaseConfigured } from "./supabase";
 import { cache, draft, isProfileComplete, pickProfile } from "./profile";
 import { remoteProfile, sameProfile } from "./profile-store";
+import { cloud } from "./cloud";
 import { loginUrl, nextStore } from "./session";
 import { setProfile as setDemoProfile } from "./demo";
 import type { Company } from "./types";
@@ -98,6 +99,12 @@ export function AuthGate({ children, requireProfile = false }: { children: React
         router.replace("/onboarding");
         return;
       }
+      try {
+        if (!sessionStorage.getItem("ts_login_logged")) {
+          sessionStorage.setItem("ts_login_logged", "1");
+          void cloud.track("login", { offline: isOffline });
+        }
+      } catch { /* storage blocked */ }
       setMe(company); setOffline(isOffline); setFatal("");
     })();
     return () => { cancelled = true; };
