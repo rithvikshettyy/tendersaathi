@@ -3,6 +3,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type Form
 import { api } from "@/lib/api";
 import VoiceNote from "./VoiceNote";
 import { useLang } from "@/lib/i18n";
+import { useVoiceInput } from "@/lib/voice";
 
 interface Msg { role: "user" | "assistant"; content: string; sources?: string[]; error?: boolean; fresh?: boolean; lang?: string }
 export interface ChatPanelHandle { focus: () => void }
@@ -46,7 +47,16 @@ const ChatPanel = forwardRef<ChatPanelHandle, { compact?: boolean }>(function Ch
     } finally { setBusy(false); }
   }
 
-  const onSubmit = (e: FormEvent) => { e.preventDefault(); send(q); };
+  // Voice input: the live transcript is appended to whatever was already typed; the user checks it and sends.
+  const typedBefore = useRef("");
+  const voice = useVoiceInput(lang, text => setQ([typedBefore.current, text].filter(Boolean).join(" ")));
+  const toggleMic = () => {
+    if (!voice.listening) typedBefore.current = q.trim();
+    voice.toggle();
+    input.current?.focus();
+  };
+
+  const onSubmit = (e: FormEvent) => { e.preventDefault(); if (voice.listening) voice.stop(); send(q); };
 
   return (
     <div className={`chatpanel ${compact ? "compact" : ""}`}>
@@ -79,9 +89,27 @@ const ChatPanel = forwardRef<ChatPanelHandle, { compact?: boolean }>(function Ch
         <div ref={end} />
       </div>
       <form className="chatform" onSubmit={onSubmit}>
-        <input ref={input} required placeholder="Ask TenderSaathi…" value={q} onChange={e => setQ(e.target.value)} />
+        <input ref={input} required placeholder={voice.listening ? "Listening…" : "Ask TenderSaathi…"} value={q}
+          className={voice.listening ? "listening" : ""}
+          onChange={e => { if (voice.listening) voice.stop(); setQ(e.target.value); }} />
+        {voice.mode !== "none" && (
+          <button type="button" className={`mic ${voice.listening ? "on" : ""}`} onClick={toggleMic} disabled={busy}
+            aria-pressed={voice.listening} aria-label={voice.listening ? "Stop voice input" : "Speak your question"}
+            title={voice.listening ? "Stop listening" : "Speak your question"}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+            </svg>
+          </button>
+        )}
         <button className="primary" disabled={busy}>Send</button>
       </form>
+      {(voice.listening || voice.error) && (
+        <p className={`mic-hint ${voice.error ? "err" : ""}`} role="status">
+          {voice.error || (voice.mode === "live"
+            ? "Listening… your words appear above. Edit if needed, then press Enter to send."
+            : "Listening… transcribing with Sarvam every few seconds (max 30 s). Press Enter to send.")}
+        </p>
+      )}
     </div>
   );
 });

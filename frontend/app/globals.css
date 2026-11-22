@@ -242,3 +242,11 @@ table td{padding:3px 12px 3px 0;vertical-align:top}
 .lang-menu button.on{background:var(--acc);color:var(--on-acc)}
 .lang-err{padding:8px 10px;font-size:12px;color:var(--red);max-width:220px}
 @media(max-width:560px){.lang-btn span{display:none}.lang-btn{padding:0 11px}}
+
+/* ===== chat voice input ===== */
+.chatform .mic{flex:none;display:grid;place-items:center;width:40px;padding:0;border-radius:8px}
+.chatform .mic.on{background:var(--red);border-color:var(--red);color:#fff;animation:micpulse 1.4s ease-in-out infinite}
+.chatform input.listening{border-color:var(--red)}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.45)}50%{box-shadow:0 0 0 6px rgba(255,107,107,0)}}
+.mic-hint{margin:6px 0 0;font-size:12px;color:var(--muted)}
+.mic-hint.err{color:var(--red)}

@@ -139,6 +139,7 @@ All routes are under `/api` and need `Authorization: Bearer <token>` except regi
 | GET | `/tenders/{id}/fillpack` | Pre-filled form data and steps |
 | GET | `/schemes` | Matched government schemes |
 | GET / POST | `/langs`, `/chat` | Languages; RAG chat |
+| POST | `/stt?lang=hi` | Voice input: transcribe up to 30 s of audio with Sarvam `saaras:v4` (used when the browser has no live speech recognition) |
 | POST | `/tts` | Read a chat answer aloud (MP3, Sarvam Bulbul) |
 
 Onboarding saves through `PUT /me` with: `name, gstin, udyam, state, city, size, turnover_cr, years, certifications, products, services, women_owned, startup`. It expects the saved company back, including `categories`.

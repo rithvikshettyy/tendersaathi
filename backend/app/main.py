@@ -8,7 +8,7 @@ from pydantic import BaseModel
 load_dotenv()
 from . import db, categories, serp, analyzer, schemes, readiness, rag, supabase_auth  # noqa: E402
 from . import ingest, evaluate, research, wa, tts  # noqa: E402
-from . import demo, pipeline, sources, translate, youcom  # noqa: E402
+from . import demo, pipeline, sources, stt, translate, youcom  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("tendersaathi.bot")
@@ -472,6 +472,16 @@ def chat(body: ChatIn, u=Depends(me)):
 class TTSIn(BaseModel):
     text: str
     lang: str = "en"
+
+
+@app.post("/api/stt")
+async def stt_endpoint(file: UploadFile = File(...), lang: str = "", u=Depends(me)):
+    """Voice input for the chat: transcribe up to 30 s of audio with Sarvam (text in the spoken language)."""
+    audio = await file.read(stt.MAX_BYTES + 1)
+    try:
+        return stt.transcribe(audio, file.filename or "speech.webm", file.content_type or "audio/webm", lang)
+    except stt.STTError as e:
+        raise HTTPException(e.status, str(e))
 
 
 @app.post("/api/tts")
