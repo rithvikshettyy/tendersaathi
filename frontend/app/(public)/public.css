@@ -20,13 +20,18 @@
   padding:14px 6vw;background:transparent}
 .pnav .brand{font-weight:600;font-size:19px;letter-spacing:-.02em;color:var(--fg);text-decoration:none}
 .pnav .brand span{color:var(--acc2)}
-.pnav .links{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* Spacing scale: 12px between controls; the text links sit slightly apart from the controls. */
+.pnav .links{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .pnav .links a.lnk{color:var(--muted);text-decoration:none;padding:8px 12px;border-radius:8px;font-size:14px}
 .pnav .links a.lnk:hover,.pnav .links a.lnk.on{color:var(--fg)}
 .pnav .links button{height:38px;padding:0 18px;font-size:14px;display:inline-flex;align-items:center}
 /* theme toggle: same height as the pill buttons, round, icon centred (overrides the padding above) */
-.pnav .links button.theme-toggle{width:38px;padding:0;justify-content:center;border-radius:50%;margin:0 4px;flex:none}
-.pnav .links a{display:inline-flex}
+.pnav .links button.theme-toggle{width:38px;padding:0;justify-content:center;border-radius:50%;margin:0;flex:none}
+.pnav .links a{display:inline-flex;text-decoration:none}
+.pnav .links .lang-wrap{margin-left:8px}
+.pnav .cta-group{display:flex;align-items:center;gap:12px}
+/* the menu button is for phones only (the general button rule above would otherwise show it) */
+.pnav .links .menu-btn{display:none}
 .pnav .links .lang-btn{padding:0 14px;gap:8px}
 .pnav .links .lang-menu button{display:block;height:auto;width:100%;padding:8px 10px;border:0;border-radius:8px;background:none;color:var(--fg)}
 .pnav .links .lang-menu button:hover{background:var(--hover)}
@@ -192,13 +197,14 @@
   .pnav .links .lnk,.pnav .links .cta-group{display:none}
   .pnav .links .lang-btn,.pnav .links .theme-toggle.sm,.pnav .menu-btn{display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border-radius:12px}
   .pnav .links .lang-btn{display:inline-flex;justify-content:center}
-  .pnav .menu-btn{display:grid}
+  .pnav .links .menu-btn{display:grid}
+  .pnav .links .lang-wrap{margin-left:0}
   .pn-sheet{display:flex;flex-direction:column;position:absolute;top:calc(100% + 4px);left:12px;right:12px;padding:8px;
     background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 50px -20px var(--shadow)}
   .pn-sheet .lnk{display:flex;align-items:center;min-height:48px;padding:0 12px;border-radius:10px;font-size:16px;color:var(--fg);text-decoration:none}
   .pn-sheet .lnk.on{background:var(--hover)}
   .pn-cta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;padding:10px 4px 4px;border-top:1px solid var(--line)}
-  .pn-cta a{display:block}.pn-cta button{width:100%}
+  .pn-cta a{display:block;text-decoration:none}.pn-cta button{width:100%}
 
   .phero{padding:112px 0 56px}
   .pub main>section.wrap:first-child{padding-top:112px!important}
