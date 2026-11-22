@@ -54,7 +54,7 @@ export default function Home() {
       <section className="phero">
         <div className="wrap center">
           <span className="badge"><b>Tender intelligence</b> for Indian manufacturers & service providers</span>
-          <h1 className="h-xl">Find, qualify and win <span className="grad">the right tenders.</span></h1>
+          <h1 className="h-xl">Know if you qualify <span className="grad">before you read page one.</span></h1>
           <p className="lead">Discovery across government and private portals, instant eligibility checks on tender PDFs, buyer risk signals and a bid readiness score. All in one workspace.</p>
           <div className="cta-row">
             <Link href="/signup"><button className="primary big">Get started free</button></Link>
@@ -75,7 +75,7 @@ export default function Home() {
         <Reveal>
           <span className="eyebrow">Platform</span>
           <h2 className="h-lg">Everything between a search and a submission.</h2>
-          <p className="lead">Six tools that remove the usual reasons small suppliers lose tenders.</p>
+          <p className="lead small">Examples on this page use sample data.</p>
         </Reveal>
         <div className="bento">
           <Reveal className="b-wide"><div className="tile">
@@ -91,7 +91,7 @@ export default function Home() {
           <Reveal delay={0}><div className="tile">
             <span className="tag">Risk</span><h3>Buyer signals</h3>
             <p>Disputes, delays and blacklist mentions, plus who has bid before.</p>
-            <div className="meter"><i style={{ width: "62%" }} /></div><small className="muted">Medium risk · sample</small>
+            <div className="meter"><i style={{ width: "62%" }} /></div><small className="muted">Medium risk</small>
           </div></Reveal>
           <Reveal delay={80}><div className="tile">
             <span className="tag">Readiness</span><h3>Bid score, 0 to 100</h3>
@@ -131,7 +131,7 @@ export default function Home() {
             <p className="a">Certifications missing: ISO 14001</p>
             <p className="g">MSE relaxations available to you</p>
             <p className="a">EMD about ₹50,000. MSEs often exempt</p>
-            <small className="muted">Sample output</small>
+            
           </div></Reveal>
         </div>
       </section>
