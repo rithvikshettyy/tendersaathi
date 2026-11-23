@@ -8,3 +8,6 @@ node_modules/
 # screen recordings
 *.mp4
 *.mov
+
+# stray root lockfile (app lives in frontend/)
+/package-lock.json
