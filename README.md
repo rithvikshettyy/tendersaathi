@@ -22,6 +22,8 @@ Register your business once. TenderSaathi places you in tender categories, finds
 | **Bid readiness score** | 0 to 100 from a 15-item document checklist, profile completeness, PDF alignment and time left, with the gaps listed. |
 | **Schemes and benefits** | 13 central MSME, startup and procurement schemes matched to your profile (EMD exemption, purchase preference, CGTMSE, PMEGP and others). |
 | **Multilingual assistant** | RAG chatbot over your profile, tenders, PDFs and schemes, answering in 11 languages through Sarvam. Every reply has a WhatsApp-style voice note (play/pause, progress, optional auto-play). |
+| **WhatsApp bot** | Message the bot from any number: a daily tender digest, a tap-to-pick tender list, buyer risk reports and PDF eligibility checks (send a PDF in the chat), each ending in a bid / maybe / don't-bid verdict. Greetings and unknown messages get a 3-button menu. Uses the WhatsApp Cloud API; see [WhatsApp setup](#whatsapp-bot-setup). |
+| **Mobile friendly** | Landing page and the whole app are responsive down to small phones. Chat also supports voice input with a live transcript. |
 | **Assisted form filling** | A ready data pack and step list for portal forms. See [what it does not do](#what-it-does-not-do). |
 | **Sign-in** | Google (via Supabase) or email and password. |
 
@@ -88,6 +90,12 @@ Open http://localhost:3000. In `npm run dev`, Next.js proxies `/api/*` to `http:
 | `SARVAM_API_KEY` | Multilingual chat ([sarvam.ai](https://www.sarvam.ai)) |
 | `SUPABASE_URL` | Supabase project URL, to verify Google sign-in tokens |
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key |
+| `WA_TOKEN` | WhatsApp Cloud API token. Use a permanent System User token; test tokens expire in 24 h |
+| `WA_PHONE_NUMBER_ID`, `WA_VERIFY_TOKEN`, `WA_APP_SECRET` | WhatsApp phone number ID, webhook verify token, app secret (signature check) |
+| `GRAPH_VERSION`, `TEMPLATE_LANG` | Graph API version (default `v21.0`) and language of the `daily_tenders` template |
+| `OWNER_PHONE` | Digits with country code. Receives the scheduled daily digest |
+| `CRON_SECRET` | Shared secret sent as `X-Cron-Secret` by the scheduler that triggers the digest |
+| `SERP_LIVE`, `GEM_LIVE`, `PUBLIC_REGISTER` | Feature switches. Set `PUBLIC_REGISTER=0` when deployed so strangers cannot register and burn search credits |
 
 **`frontend/.env.local`**
 
@@ -98,6 +106,15 @@ Open http://localhost:3000. In `npm run dev`, Next.js proxies `/api/*` to `http:
 | `BACKEND_URL` | Backend base URL for the `/api` proxy. Optional: `next dev` defaults to `http://localhost:8000`, production builds default to `https://tendersaathi.onrender.com`. |
 
 Without `SERPAPI_KEY` or `SARVAM_API_KEY`, search and chat return a clear "key not set" error; everything else works. Never commit `.env` files (they are gitignored).
+
+### WhatsApp bot setup
+
+1. In Meta for Developers, add the WhatsApp product and note the phone number ID and a permanent System User token.
+2. Point the webhook at `https://<backend>/webhook` with your `WA_VERIFY_TOKEN`, and subscribe to `messages`.
+3. Create a message template named `daily_tenders` (one variable: tender count) for the daily digest outside the 24 h window.
+4. Schedule `POST /api/digest/run` with header `X-Cron-Secret: <CRON_SECRET>` (for example cron-job.org) to send the daily digest to `OWNER_PHONE`.
+
+Replies go to whoever messaged the bot; `OWNER_PHONE` is only used for the scheduled digest.
 
 ### Setting up Google sign-in
 
@@ -140,6 +157,8 @@ All routes are under `/api` and need `Authorization: Bearer <token>` except regi
 | GET | `/schemes` | Matched government schemes |
 | GET / POST | `/langs`, `/chat` | Languages; RAG chat |
 | POST | `/stt?lang=hi` | Voice input: transcribe up to 30 s of audio with Sarvam `saaras:v4` (used when the browser has no live speech recognition) |
+| GET / POST | `/webhook` | WhatsApp Cloud API verification and incoming messages (signature-checked, no bearer token; outside `/api`) |
+| POST | `/api/digest/run` | Send the daily WhatsApp digest. Needs `X-Cron-Secret` |
 | POST | `/tts` | Read a chat answer aloud (MP3, Sarvam Bulbul) |
 
 Onboarding saves through `PUT /me` with: `name, gstin, udyam, state, city, size, turnover_cr, years, certifications, products, services, women_owned, startup`. It expects the saved company back, including `categories`.
@@ -159,6 +178,10 @@ backend/app/
   readiness.py      bid readiness score
   schemes.py        scheme matcher
   rag.py            BM25 retrieval + Sarvam chat
+  wa.py             WhatsApp Cloud API client and message formatting
+  evaluate.py       daily digest ranking
+  stt.py, tts.py    Sarvam speech to text and text to speech
+  translate.py      Sarvam translation for the site-wide language switch
   db.py             SQLite schema
 frontend/
   app/(public)/     landing, features, how it works, about, login, signup, auth callback
